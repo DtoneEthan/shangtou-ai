@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bobo.AI聊天机器人 by Ethan</title>
+  <title>BOBO聊天机器人 作者 Ethan X</title>
   <style>
 pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}/*!
   Theme: GitHub Dark
@@ -17,7 +17,7 @@ pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5p
 */.hljs{color:#c9d1d9;background:#0d1117}.hljs-doctag,.hljs-keyword,.hljs-meta .hljs-keyword,.hljs-template-tag,.hljs-template-variable,.hljs-type,.hljs-variable.language_{color:#ff7b72}.hljs-title,.hljs-title.class_,.hljs-title.class_.inherited__,.hljs-title.function_{color:#d2a8ff}.hljs-attr,.hljs-attribute,.hljs-literal,.hljs-meta,.hljs-number,.hljs-operator,.hljs-selector-attr,.hljs-selector-class,.hljs-selector-id,.hljs-variable{color:#79c0ff}.hljs-meta .hljs-string,.hljs-regexp,.hljs-string{color:#a5d6ff}.hljs-built_in,.hljs-symbol{color:#ffa657}.hljs-code,.hljs-comment,.hljs-formula{color:#8b949e}.hljs-name,.hljs-quote,.hljs-selector-pseudo,.hljs-selector-tag{color:#7ee787}.hljs-subst{color:#c9d1d9}.hljs-section{color:#1f6feb;font-weight:700}.hljs-bullet{color:#f2cc60}.hljs-emphasis{color:#c9d1d9;font-style:italic}.hljs-strong{color:#c9d1d9;font-weight:700}.hljs-addition{color:#aff5b4;background-color:#033a16}.hljs-deletion{color:#ffdcd7;background-color:#67060c}
 </style>
   <style>
-/* ========== Bobo.AI聊天机器人 by Ethan — CSS 变量与全局样式 ========== */
+/* ========== BOBO聊天机器人 — CSS 变量与全局样式 ========== */
 :root {
   --bg-primary: #0f0f1a;
   --bg-secondary: #161625;
@@ -321,6 +321,11 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+.brand-wrap { display: flex; flex-direction: column; line-height: 1.25; }
+.brand-name { font-size: 18px; font-weight: 700; color: var(--accent); }
+.brand-author { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
+.empty-author { margin-top: 8px; font-size: 13px; color: var(--text-muted); }
 
   </style>
 </head>
@@ -1859,7 +1864,7 @@ return He}()
 
   <script>
 /**
- * Bobo.AI聊天机器人 by Ethan — 本地存储
+ * BOBO聊天机器人 — 本地存储
  */
 
 const Storage = {
@@ -1965,7 +1970,7 @@ const Storage = {
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — API 层
+ * BOBO聊天机器人 — API 层
  * 国内大模型免费 API 调用 + 前端搜索聚合
  */
 
@@ -2037,7 +2042,7 @@ const API = {
   async chat(messages, docContext = '', searchContext = '') {
     const systemMsgs = [{
       role: 'system',
-      content: '你是 Bobo.AI聊天机器人 by Ethan，一个强大的 AI Agent。你可以回答问题、搜索信息、执行任务、分析数据。请用简洁清晰的中文回复。'
+      content: '你是 BOBO聊天机器人，一个强大的 AI Agent。你可以回答问题、搜索信息、执行任务、分析数据。请用简洁清晰的中文回复。'
     }];
     if (docContext) {
       systemMsgs.push({
@@ -2124,7 +2129,7 @@ const API = {
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — Agent 引擎
+ * BOBO聊天机器人 — Agent 引擎
  * Plan → Execute → Observe → Generate 循环
  */
 
@@ -2188,7 +2193,7 @@ const AgentEngine = {
   },
   // ====== Plan ======
   async _plan(task, notify) {
-    const prompt = `你是 Bobo.AI聊天机器人 by Ethan Agent。请为以下任务制定执行计划，以 JSON 格式输出：
+    const prompt = `你是 BOBO聊天机器人 Agent。请为以下任务制定执行计划，以 JSON 格式输出：
 
 任务：${task.description}
 
@@ -2277,7 +2282,7 @@ const AgentEngine = {
           allInfo += output + '\n';
         } else {
           // 分析/生成步骤
-          const prompt = `你是 Bobo.AI聊天机器人 by Ethan。当前执行任务步骤。
+          const prompt = `你是 BOBO聊天机器人。当前执行任务步骤。
 
 任务：${task.description}
 步骤 ${step.id}/${task.plan.length}：${step.description}
@@ -2288,7 +2293,7 @@ ${allInfo.slice(0, 6000) || '（暂无）'}
 请执行此步骤并输出结果。用 Markdown 格式，简洁清晰。`;
           output = await this._timeout(API._callLLM([{
             role: 'system',
-            content: '你是 Bobo.AI聊天机器人 by Ethan 执行器。请直接输出步骤执行结果。'
+            content: '你是 BOBO聊天机器人 执行器。请直接输出步骤执行结果。'
           }, {
             role: 'user',
             content: prompt
@@ -2336,7 +2341,7 @@ ${allInfo.slice(0, 6000) || '（暂无）'}
     task.status = 'generating';
     notify(task);
     const allOutputs = task.steps.filter(s => s.output).map(s => s.output).join('\n\n---\n\n');
-    const prompt = `你是 Bobo.AI聊天机器人 by Ethan。请根据以下收集的信息生成一份完整的最终报告。
+    const prompt = `你是 BOBO聊天机器人。请根据以下收集的信息生成一份完整的最终报告。
 
 原始任务：${task.description}
 
@@ -2346,7 +2351,7 @@ ${allOutputs.slice(0, 10000)}
 请用 Markdown 格式输出一份结构清晰的报告。`;
     const report = await this._timeout(API._callLLM([{
       role: 'system',
-      content: '你是 Bobo.AI聊天机器人 by Ethan 报告生成器。请输出完整、结构清晰的 Markdown 报告。'
+      content: '你是 BOBO聊天机器人 报告生成器。请输出完整、结构清晰的 Markdown 报告。'
     }, {
       role: 'user',
       content: prompt
@@ -2359,7 +2364,7 @@ ${allOutputs.slice(0, 10000)}
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — Sidebar 组件
+ * BOBO聊天机器人 — Sidebar 组件
  */
 
 const Sidebar = ({
@@ -2397,7 +2402,13 @@ const Sidebar = ({
     r: "10"
   }), /*#__PURE__*/React.createElement("path", {
     d: "M8 12l3 3 5-5"
-  })), "Bobo.AI\u804A\u5929\u673A\u5668\u4EBA by Ethan"), /*#__PURE__*/React.createElement("button", {
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "brand-wrap"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "brand-name"
+  }, "BOBO\u804A\u5929\u673A\u5668\u4EBA"), /*#__PURE__*/React.createElement("span", {
+    className: "brand-author"
+  }, "\u4F5C\u8005 Ethan X"))), /*#__PURE__*/React.createElement("button", {
     className: "new-chat-btn",
     onClick: onNew
   }, /*#__PURE__*/React.createElement("svg", {
@@ -2473,7 +2484,7 @@ const Sidebar = ({
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — MessageList 组件
+ * BOBO聊天机器人 — MessageList 组件
  */
 
 const MessageList = ({
@@ -2489,7 +2500,9 @@ const MessageList = ({
       className: "empty-state"
     }, /*#__PURE__*/React.createElement("div", {
       className: "empty-state-icon"
-    }, "\u26BD"), /*#__PURE__*/React.createElement("h2", null, "\u4F60\u597D\uFF0C\u6211\u662F Bobo.AI\u804A\u5929\u673A\u5668\u4EBA by Ethan"), /*#__PURE__*/React.createElement("p", null, "\u6211\u53EF\u4EE5\u56DE\u7B54\u95EE\u9898\u3001\u641C\u7D22\u4FE1\u606F\u3001\u6267\u884C\u4EFB\u52A1\u3001\u5206\u6790\u6570\u636E\u3002"), /*#__PURE__*/React.createElement("div", {
+    }, "\u26BD"), /*#__PURE__*/React.createElement("h2", null, "\u4F60\u597D\uFF0C\u6211\u662F BOBO\u804A\u5929\u673A\u5668\u4EBA"), /*#__PURE__*/React.createElement("p", {
+      className: "empty-author"
+    }, "\u4F5C\u8005 Ethan X"), /*#__PURE__*/React.createElement("p", null, "\u6211\u53EF\u4EE5\u56DE\u7B54\u95EE\u9898\u3001\u641C\u7D22\u4FE1\u606F\u3001\u6267\u884C\u4EFB\u52A1\u3001\u5206\u6790\u6570\u636E\u3002"), /*#__PURE__*/React.createElement("div", {
       className: "empty-state-features"
     }, /*#__PURE__*/React.createElement("div", {
       className: "feature-card"
@@ -2542,7 +2555,7 @@ const MessageList = ({
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — InputBox 组件
+ * BOBO聊天机器人 — InputBox 组件
  */
 
 const InputBox = ({
@@ -2610,7 +2623,7 @@ const InputBox = ({
   }, "\uD83D\uDCCE"), /*#__PURE__*/React.createElement("textarea", {
     ref: textareaRef,
     className: "input-textarea",
-    placeholder: "\u5411 Bobo.AI\u804A\u5929\u673A\u5668\u4EBA by Ethan \u63D0\u95EE\uFF0C\u6216\u8F93\u5165 /task \u5F00\u59CB\u4EFB\u52A1...",
+    placeholder: "\u5411 BOBO\u804A\u5929\u673A\u5668\u4EBA \u63D0\u95EE\uFF0C\u6216\u8F93\u5165 /task \u5F00\u59CB\u4EFB\u52A1...",
     rows: "1",
     value: text,
     onChange: handleInput,
@@ -2626,7 +2639,7 @@ const InputBox = ({
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — ChatArea 组件
+ * BOBO聊天机器人 — ChatArea 组件
  */
 
 const ChatArea = ({
@@ -2741,7 +2754,7 @@ const ChatArea = ({
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — TaskPanel 组件（任务提交）
+ * BOBO聊天机器人 — TaskPanel 组件（任务提交）
  */
 
 const TaskPanel = ({
@@ -2758,7 +2771,7 @@ const TaskPanel = ({
     className: "task-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "task-panel-header"
-  }, /*#__PURE__*/React.createElement("h2", null, "\uD83E\uDD16 Agent \u4EFB\u52A1"), /*#__PURE__*/React.createElement("p", null, "Bobo.AI\u804A\u5929\u673A\u5668\u4EBA by Ethan \u4F1A\u81EA\u52A8\u89C4\u5212\u3001\u641C\u7D22\u3001\u5206\u6790\u3001\u751F\u6210\u62A5\u544A")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("h2", null, "\uD83E\uDD16 Agent \u4EFB\u52A1"), /*#__PURE__*/React.createElement("p", null, "BOBO\u804A\u5929\u673A\u5668\u4EBA \u4F1A\u81EA\u52A8\u89C4\u5212\u3001\u641C\u7D22\u3001\u5206\u6790\u3001\u751F\u6210\u62A5\u544A")), /*#__PURE__*/React.createElement("div", {
     className: "task-input-area"
   }, /*#__PURE__*/React.createElement("textarea", {
     className: "task-textarea",
@@ -2789,7 +2802,7 @@ const TaskPanel = ({
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — AgentStatus 组件（显示任务执行进度）
+ * BOBO聊天机器人 — AgentStatus 组件（显示任务执行进度）
  */
 
 const AgentStatus = ({
@@ -2849,7 +2862,7 @@ const AgentStatus = ({
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — TaskResult 组件
+ * BOBO聊天机器人 — TaskResult 组件
  */
 
 const TaskResult = ({
@@ -2888,7 +2901,7 @@ const TaskResult = ({
 };
 
 /**
- * Bobo.AI聊天机器人 by Ethan — 主应用入口
+ * BOBO聊天机器人 — 主应用入口
  */
 
 const App = () => {
@@ -3101,7 +3114,7 @@ const App = () => {
     className: "chat-header"
   }, /*#__PURE__*/React.createElement("span", {
     className: "chat-title"
-  }, conversation?.title || 'Bobo.AI聊天机器人 by Ethan'), /*#__PURE__*/React.createElement("div", {
+  }, conversation?.title || 'BOBO聊天机器人'), /*#__PURE__*/React.createElement("div", {
     className: "chat-header-actions"
   }, /*#__PURE__*/React.createElement("button", {
     className: "input-btn",
