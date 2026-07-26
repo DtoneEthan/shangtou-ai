@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messi.AI — 智能 AI Agent</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <style>
+/* ========== shangtou.ai — CSS 变量与全局样式 ========== */
+:root {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #161625;
+  --bg-sidebar: #0a0a14;
+  --bg-input: #1a1a2e;
+  --bg-bubble-user: #6c5ce7;
+  --bg-bubble-ai: #1e1e32;
+  --bg-hover: #252540;
+  --text-primary: #e8e8f0;
+  --text-secondary: #a0a0b8;
+  --text-muted: #606078;
+  --border-color: #2a2a40;
+  --accent: #6c5ce7;
+  --accent-hover: #7c6cf7;
+  --success: #00b894;
+  --danger: #e17055;
+  --warning: #fdcb6e;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --transition: all 0.2s ease;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+}
+
+#root { height: 100vh; display: flex; }
+
+/* ========== App Container ========== */
+.app-container { display: flex; height: 100vh; width: 100%; }
+
+/* ========== Sidebar ========== */
+.sidebar {
+  width: 280px; min-width: 280px; height: 100vh;
+  background: var(--bg-sidebar); border-right: 1px solid var(--border-color);
+  display: flex; flex-direction: column; overflow: hidden;
+  transition: var(--transition);
+}
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: -280px; z-index: 100; }
+  .sidebar.open { left: 0; }
+}
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
+@media (max-width: 768px) { .sidebar-overlay { display: block; } }
+
+.sidebar-header { padding: 16px; border-bottom: 1px solid var(--border-color); }
+.sidebar-logo { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; color: var(--accent); margin-bottom: 12px; }
+.new-chat-btn {
+  width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+  background: var(--bg-hover); color: var(--text-primary); cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 6px; transition: var(--transition);
+}
+.new-chat-btn:hover { background: var(--accent); border-color: var(--accent); }
+
+.sidebar-tabs { display: flex; border-bottom: 1px solid var(--border-color); }
+.sidebar-tab {
+  flex: 1; padding: 10px; border: none; background: none; color: var(--text-muted);
+  cursor: pointer; font-size: 13px; transition: var(--transition);
+}
+.sidebar-tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+
+.sidebar-history { flex: 1; overflow-y: auto; padding: 8px; }
+.history-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 13px; color: var(--text-secondary); transition: var(--transition);
+  margin-bottom: 2px;
+}
+.history-item:hover { background: var(--bg-hover); }
+.history-item.active { background: rgba(108,92,231,0.15); color: var(--accent); }
+.history-item-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-item-delete { opacity: 0; background: none; border: none; color: var(--danger); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; }
+.history-item:hover .history-item-delete { opacity: 1; }
+
+.sidebar-footer { padding: 12px 16px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted); text-align: center; }
+
+/* ========== Main Content ========== */
+.main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ========== Mode Tabs ========== */
+.mode-tabs {
+  display: flex; border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary); padding: 0 16px;
+}
+.mode-tab {
+  padding: 12px 20px; border: none; background: none; color: var(--text-muted);
+  cursor: pointer; font-size: 14px; transition: var(--transition);
+  border-bottom: 2px solid transparent;
+}
+.mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.mode-tab:hover { color: var(--text-primary); }
+
+/* ========== Chat Area ========== */
+.chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chat-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary);
+}
+.chat-title { font-size: 15px; font-weight: 600; }
+.chat-header-actions { display: flex; gap: 8px; }
+.mobile-menu-btn { display: none; background: none; border: none; color: var(--text-primary); font-size: 20px; cursor: pointer; }
+@media (max-width: 768px) { .mobile-menu-btn { display: block; } }
+
+/* ========== Status Bar ========== */
+.status-bar { padding: 8px 20px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+.status-error { background: rgba(225,112,85,0.15); color: var(--danger); }
+.status-searching { background: rgba(108,92,231,0.1); color: var(--accent); animation: pulse 1.5s infinite; }
+.status-info { background: rgba(0,184,148,0.1); color: var(--success); }
+.status-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 14px; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* ========== Message List ========== */
+.message-list { flex: 1; overflow-y: auto; padding: 20px; }
+.message { display: flex; gap: 12px; margin-bottom: 20px; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.message.user { flex-direction: row-reverse; }
+.message-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.message.user .message-avatar { background: var(--bg-bubble-user); }
+.message.assistant .message-avatar { background: var(--bg-bubble-ai); }
+.message-content { max-width: 75%; }
+.message.user .message-content { text-align: right; }
+.message-text {
+  padding: 12px 16px; border-radius: var(--radius); font-size: 14px; line-height: 1.7;
+  word-break: break-word;
+}
+.message.user .message-text { background: var(--bg-bubble-user); color: #fff; }
+.message.assistant .message-text { background: var(--bg-bubble-ai); }
+.message-text h1,.message-text h2,.message-text h3 { margin: 12px 0 6px; }
+.message-text p { margin: 6px 0; }
+.message-text ul,.message-text ol { padding-left: 20px; margin: 6px 0; }
+.message-text code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+.message-text pre { background: rgba(0,0,0,0.4); padding: 12px; border-radius: var(--radius-sm); overflow-x: auto; margin: 8px 0; }
+.message-text pre code { background: none; padding: 0; }
+.message-text blockquote { border-left: 3px solid var(--accent); padding-left: 12px; margin: 8px 0; color: var(--text-secondary); }
+.message-text a { color: var(--accent); }
+.message-text table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.message-text th,.message-text td { border: 1px solid var(--border-color); padding: 6px 10px; text-align: left; font-size: 13px; }
+.message-text th { background: rgba(108,92,231,0.1); }
+
+.search-badge {
+  display: inline-block; background: rgba(0,184,148,0.15); color: var(--success);
+  padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-bottom: 6px;
+}
+.search-sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.search-source-link {
+  display: inline-block; padding: 4px 10px; background: rgba(108,92,231,0.1);
+  border-radius: 4px; font-size: 12px; color: var(--accent); text-decoration: none;
+}
+.search-source-link:hover { background: rgba(108,92,231,0.2); }
+
+/* ========== Empty State ========== */
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-state-icon { font-size: 56px; margin-bottom: 16px; }
+.empty-state h2 { font-size: 24px; margin-bottom: 8px; }
+.empty-state p { color: var(--text-secondary); margin-bottom: 32px; }
+.empty-state-features { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; max-width: 700px; margin: 0 auto; }
+.feature-card {
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: var(--radius); padding: 20px; width: 200px; text-align: center;
+  transition: var(--transition);
+}
+.feature-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.feature-card-icon { font-size: 28px; margin-bottom: 8px; }
+.feature-card h3 { font-size: 14px; margin-bottom: 4px; }
+.feature-card p { font-size: 12px; color: var(--text-muted); }
+
+/* ========== Typing Indicator ========== */
+.typing-indicator { display: flex; gap: 4px; padding: 12px 16px; }
+.typing-indicator span {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted);
+  animation: typing 1.4s infinite;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing { 0%,60%,100%{opacity:0.4;transform:translateY(0)} 30%{opacity:1;transform:translateY(-4px)} }
+
+/* ========== Input Area ========== */
+.input-area-wrapper { padding: 12px 20px 16px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
+.doc-attachment {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px; background: rgba(108,92,231,0.1); border-radius: var(--radius-sm);
+  margin-bottom: 8px; font-size: 13px;
+}
+.input-area { display: flex; align-items: flex-end; gap: 8px; background: var(--bg-input); border-radius: var(--radius); padding: 8px 12px; }
+.input-textarea {
+  flex: 1; background: none; border: none; color: var(--text-primary); font-size: 15px;
+  line-height: 1.5; resize: none; outline: none; min-height: 24px; max-height: 200px;
+  font-family: inherit; padding: 4px 0;
+}
+.input-textarea::placeholder { color: var(--text-muted); }
+.input-btn {
+  width: 36px; height: 36px; border: none; background: var(--bg-hover); color: var(--text-secondary);
+  border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center;
+  justify-content: center; transition: var(--transition); flex-shrink: 0;
+}
+.input-btn:hover { background: var(--accent); color: #fff; }
+.input-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.send-btn { background: var(--accent); color: #fff; }
+.send-btn:hover { background: var(--accent-hover); }
+.input-hint { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+/* ========== Task Panel ========== */
+.task-panel { max-width: 700px; margin: 40px auto; padding: 0 20px; }
+.task-panel-header { text-align: center; margin-bottom: 24px; }
+.task-panel-header h2 { font-size: 24px; margin-bottom: 6px; }
+.task-panel-header p { color: var(--text-secondary); }
+.task-input-area { margin-bottom: 32px; }
+.task-textarea {
+  width: 100%; padding: 14px; background: var(--bg-input); border: 1px solid var(--border-color);
+  border-radius: var(--radius); color: var(--text-primary); font-size: 15px; line-height: 1.6;
+  resize: vertical; font-family: inherit; outline: none; transition: var(--transition);
+}
+.task-textarea:focus { border-color: var(--accent); }
+.task-textarea::placeholder { color: var(--text-muted); }
+.task-start-btn {
+  width: 100%; margin-top: 12px; padding: 14px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius); font-size: 16px; font-weight: 600; cursor: pointer;
+  transition: var(--transition);
+}
+.task-start-btn:hover { background: var(--accent-hover); }
+.task-start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.task-examples h3 { font-size: 14px; color: var(--text-muted); margin-bottom: 10px; }
+.task-example-list { display: flex; flex-direction: column; gap: 6px; }
+.task-example-item {
+  padding: 10px 14px; background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm); font-size: 13px; color: var(--text-secondary); cursor: pointer;
+  transition: var(--transition);
+}
+.task-example-item:hover { border-color: var(--accent); color: var(--text-primary); }
+
+/* ========== Agent Status ========== */
+.agent-status { padding: 20px; overflow-y: auto; }
+.agent-status-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.agent-status-header h3 { font-size: 18px; }
+.agent-task-desc { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+.agent-cancel-btn {
+  padding: 8px 16px; background: rgba(225,112,85,0.15); color: var(--danger);
+  border: 1px solid rgba(225,112,85,0.3); border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 13px;
+}
+.agent-cancel-btn:hover { background: rgba(225,112,85,0.3); }
+.agent-plan { margin-bottom: 20px; }
+.progress-bar { height: 4px; background: var(--bg-hover); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s; }
+.progress-text { font-size: 12px; color: var(--text-muted); text-align: right; margin-bottom: 12px; }
+.plan-steps { display: flex; flex-direction: column; gap: 6px; }
+.plan-step { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-secondary); border-radius: var(--radius-sm); font-size: 13px; }
+.plan-step-icon { flex-shrink: 0; }
+.plan-step.in_progress { border: 1px solid var(--accent); animation: pulse 1.5s infinite; }
+.plan-step.completed { opacity: 0.7; }
+.step-output { margin-bottom: 16px; }
+.step-output-header { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+.step-output-content {
+  padding: 12px 16px; background: var(--bg-secondary); border-radius: var(--radius-sm);
+  font-size: 14px; line-height: 1.7;
+}
+.step-output-content h1,.step-output-content h2,.step-output-content h3 { margin: 10px 0 6px; font-size: 15px; }
+.step-output-content p { margin: 6px 0; }
+.step-output-content ul,.step-output-content ol { padding-left: 18px; }
+
+/* ========== Task Result ========== */
+.task-result { padding: 20px; overflow-y: auto; }
+.task-result-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);
+}
+.task-result-header h3 { font-size: 16px; }
+.task-result-actions { display: flex; gap: 8px; }
+.task-result-btn {
+  padding: 8px 14px; background: var(--bg-hover); color: var(--text-secondary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 13px; transition: var(--transition);
+}
+.task-result-btn:hover { border-color: var(--accent); color: var(--accent); }
+.task-result-content {
+  padding: 20px; background: var(--bg-secondary); border-radius: var(--radius);
+  font-size: 14px; line-height: 1.8;
+}
+.task-result-content h1 { font-size: 22px; margin: 20px 0 12px; }
+.task-result-content h2 { font-size: 18px; margin: 16px 0 10px; }
+.task-result-content h3 { font-size: 15px; margin: 12px 0 8px; }
+.task-result-content p { margin: 8px 0; }
+.task-result-content ul,.task-result-content ol { padding-left: 22px; margin: 8px 0; }
+.task-result-content code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; }
+.task-result-content pre { background: rgba(0,0,0,0.4); padding: 12px; border-radius: var(--radius-sm); overflow-x: auto; }
+.task-result-content pre code { background: none; }
+.task-result-content blockquote { border-left: 3px solid var(--accent); padding-left: 12px; margin: 8px 0; color: var(--text-secondary); }
+.task-result-content a { color: var(--accent); }
+.task-result-content table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.task-result-content th,.task-result-content td { border: 1px solid var(--border-color); padding: 8px 12px; text-align: left; }
+.task-result-content th { background: rgba(108,92,231,0.1); }
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <script type="text/babel">
+/**
+ * shangtou.ai — 本地存储
+ */
+
+const Storage = {
+  getConversations() {
+    try {
+      const data = localStorage.getItem('st_conversations');
+      const convs = data ? JSON.parse(data) : [];
+      for (const c of convs) {
+        for (const m of (c.messages || [])) {
+          if (m.role === 'ai') m.role = 'assistant';
+        }
+      }
+      return convs;
+    } catch { return []; }
+  },
+
+  saveConversations(convs) {
+    localStorage.setItem('st_conversations', JSON.stringify(convs));
+  },
+
+  getActiveId() {
+    return localStorage.getItem('st_active_id') || null;
+  },
+
+  setActiveId(id) {
+    localStorage.setItem('st_active_id', id);
+  },
+
+  createConversation(title = '新对话') {
+    const convs = this.getConversations();
+    const conv = {
+      id: 'c_' + Date.now(),
+      title,
+      messages: [],
+      documentContext: '',
+      documentName: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    convs.unshift(conv);
+    this.saveConversations(convs);
+    this.setActiveId(conv.id);
+    return conv;
+  },
+
+  getConversation(id) {
+    return this.getConversations().find(c => c.id === id) || null;
+  },
+
+  addMessage(convId, message) {
+    const convs = this.getConversations();
+    const conv = convs.find(c => c.id === convId);
+    if (!conv) return;
+    if (message.role === 'ai') message.role = 'assistant';
+    conv.messages.push(message);
+    conv.updatedAt = new Date().toISOString();
+    // 自动更新标题
+    if (conv.messages.length === 1 && message.role === 'user') {
+      conv.title = message.content.slice(0, 30);
+    }
+    this.saveConversations(convs);
+  },
+
+  updateConversation(id, updates) {
+    const convs = this.getConversations();
+    const conv = convs.find(c => c.id === id);
+    if (!conv) return;
+    Object.assign(conv, updates);
+    conv.updatedAt = new Date().toISOString();
+    this.saveConversations(convs);
+  },
+
+  deleteConversation(id) {
+    let convs = this.getConversations();
+    convs = convs.filter(c => c.id !== id);
+    this.saveConversations(convs);
+    if (this.getActiveId() === id) {
+      this.setActiveId(convs[0]?.id || null);
+    }
+    return convs[0] || null;
+  },
+
+  // ====== 任务存储 ======
+  getTasks() {
+    try {
+      return JSON.parse(localStorage.getItem('st_tasks') || '[]');
+    } catch { return []; }
+  },
+
+  saveTask(task) {
+    const tasks = this.getTasks().filter(t => t.id !== task.id);
+    tasks.unshift({
+      id: task.id,
+      description: task.description,
+      status: task.status,
+      result: task.result,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+    });
+    localStorage.setItem('st_tasks', JSON.stringify(tasks.slice(0, 50)));
+  },
+
+  getTask(id) {
+    return this.getTasks().find(t => t.id === id) || null;
+  },
+
+  deleteTask(id) {
+    const tasks = this.getTasks().filter(t => t.id !== id);
+    localStorage.setItem('st_tasks', JSON.stringify(tasks));
+  },
+};
+
+
+/**
+ * shangtou.ai — API 层
+ * 智谱 GLM-4-Flash 调用 + 前端搜索聚合
+ */
+
+const API_BASE = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+const DEFAULT_MODEL = 'glm-4-flash';
+
+// API Key 混淆存储
+const _EK = 'cURbVQ8neFEEBwdyQF9VWiMrBFUBV3xEXANeJy9QAQcbLBEDURgwO2RcXXdxFT0lAw==';
+const _XK = 'EthanAI2025';
+const _DK = () => {
+  try {
+    return atob(_EK).split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ _XK.charCodeAt(i % _XK.length))).join('');
+  } catch { return ''; }
+};
+
+const API = {
+  /**
+   * 调用 LLM（底层，带重试）
+   */
+  async _callLLM(messages, maxTokens = 4096, retries = 3) {
+    let lastError;
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30000);
+
+      try {
+        const response = await fetch(API_BASE, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + _DK(),
+          },
+          body: JSON.stringify({
+            model: DEFAULT_MODEL,
+            messages: messages,
+            max_tokens: maxTokens,
+            temperature: 0.7,
+            top_p: 0.9,
+          }),
+          signal: controller.signal,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          let errMsg = data.error?.message || data.message || JSON.stringify(data);
+          if (typeof errMsg === 'object') errMsg = JSON.stringify(errMsg);
+          lastError = new Error('AI API 错误：' + errMsg);
+          
+          // 网络错误或 5xx，重试
+          if (response.status >= 500 || (data.error?.code && data.error.code === '1234')) {
+            if (attempt < retries) {
+              const delay = (attempt + 1) * 3000; // 3s, 6s, 9s
+              console.warn('API 临时故障，' + delay/1000 + '秒后重试... (' + (attempt + 1) + '/' + retries + ')');
+              await new Promise(r => setTimeout(r, delay));
+              continue;
+            }
+          }
+          throw lastError;
+        }
+
+        return data.choices[0].message.content;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    
+    throw lastError || new Error('API 调用失败');
+  },
+
+  /**
+   * 聊天模式
+   */
+  async chat(messages, docContext = '', searchContext = '') {
+    const systemMsgs = [
+      { role: 'system', content: '你是 shangtou.ai，一个强大的 AI Agent。你可以回答问题、搜索信息、执行任务、分析数据。请用简洁清晰的中文回复。' }
+    ];
+
+    if (docContext) {
+      systemMsgs.push({ role: 'system', content: '文档内容：\n' + docContext.slice(0, 10000) });
+    }
+    if (searchContext) {
+      systemMsgs.push({ role: 'system', content: '搜索结果：\n' + searchContext.slice(0, 8000) });
+    }
+
+    const allMsgs = systemMsgs.concat(
+      messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : m.role, content: m.content }))
+    );
+
+    const reply = await this._callLLM(allMsgs, 4096);
+    return { reply, model: DEFAULT_MODEL };
+  },
+
+  /**
+   * 搜索网络
+   */
+  async searchWeb(query) {
+    const results = [];
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    // Wikipedia
+    try {
+      const wikiResp = await fetch(
+        'https://zh.wikipedia.org/w/api.php?action=query&format=json&list=search&srsearch=' +
+        encodeURIComponent(query) + '&srlimit=5&origin=*',
+        { signal: controller.signal }
+      );
+      const wikiData = await wikiResp.json();
+      for (const item of (wikiData.query?.search || [])) {
+        results.push({
+          title: item.title,
+          url: 'https://zh.wikipedia.org/wiki/' + encodeURIComponent(item.title.replace(/ /g, '_')),
+          snippet: item.snippet.replace(/<[^>]+>/g, '').slice(0, 200),
+          source: 'Wikipedia'
+        });
+      }
+    } catch (e) { /* ignore */ }
+
+    // DuckDuckGo
+    try {
+      const ddgResp = await fetch(
+        'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json&no_html=1',
+        { signal: controller.signal }
+      );
+      const ddgData = await ddgResp.json();
+      if (ddgData.Abstract) {
+        results.push({
+          title: ddgData.Heading || query,
+          url: ddgData.AbstractURL || '',
+          snippet: ddgData.Abstract.slice(0, 300),
+          source: 'DuckDuckGo'
+        });
+      }
+      for (const topic of (ddgData.RelatedTopics || []).slice(0, 4)) {
+        if (topic.Text) {
+          results.push({
+            title: (topic.FirstURL || '').split('/').pop().replace(/_/g, ' '),
+            url: topic.FirstURL || '',
+            snippet: topic.Text.replace(/<[^>]+>/g, '').slice(0, 200),
+            source: 'DuckDuckGo'
+          });
+        }
+      }
+    } catch (e) { /* ignore */ }
+
+    clearTimeout(timer);
+    return results;
+  },
+
+  /**
+   * 判断是否需要搜索
+   */
+  shouldSearch(text) {
+    const triggers = ['搜索', '查找', '最新', '今天', '现在', '天气', '股价', '新闻',
+      'search', 'latest', 'today', 'now', 'weather', 'news', 'price'];
+    const lower = text.toLowerCase();
+    return triggers.some(t => lower.includes(t));
+  },
+};
+
+
+/**
+ * shangtou.ai — Agent 引擎
+ * Plan → Execute → Observe → Generate 循环
+ */
+
+const AgentEngine = {
+  _running: false,
+  _onUpdate: null,
+
+  async runTask(description, onUpdate) {
+    if (this._running) throw new Error('已有任务运行中');
+    this._running = true;
+    this._onUpdate = onUpdate;
+
+    const task = {
+      id: 't_' + Date.now(),
+      description,
+      status: 'planning',
+      plan: [],
+      currentStep: 0,
+      steps: [],
+      result: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    const notify = (t) => { t.updatedAt = new Date().toISOString(); onUpdate({ ...t }); };
+
+    try {
+      // 全局超时 60 秒
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('任务执行超时（60秒）')), 60000);
+      });
+      
+      await Promise.race([
+        (async () => {
+          // Phase 1: Plan
+          notify(task);
+          await this._plan(task, notify);
+          // Phase 2: Execute
+          await this._execute(task, notify);
+          // Phase 3: Generate final report
+          await this._generate(task, notify);
+        })(),
+        timeoutPromise
+      ]);
+
+      task.status = 'completed';
+      notify(task);
+    } catch (e) {
+      if (this._running) {
+        task.status = 'failed';
+        task.result = { content: '❌ ' + e.message };
+        notify(task);
+      }
+    } finally {
+      this._running = false;
+    }
+
+    return task;
+  },
+
+  cancel() {
+    this._running = false;
+  },
+
+  _timeout(promise, ms) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+    ]);
+  },
+
+  // ====== Plan ======
+  async _plan(task, notify) {
+    const prompt = `你是 shangtou.ai Agent。请为以下任务制定执行计划，以 JSON 格式输出：
+
+任务：${task.description}
+
+输出格式：
+{
+  "reasoning": "分析（一句话）",
+  "plan": [
+    {"id": 1, "action": "search", "description": "搜索XX"},
+    {"id": 2, "action": "analyze", "description": "分析XX"},
+    {"id": 3, "action": "generate", "description": "生成最终结果"}
+  ]
+}
+
+3-5步，action 为 search/analyze/generate。只输出 JSON。`;
+
+    const response = await API._callLLM([
+      { role: 'system', content: '你是任务规划专家，只输出 JSON。' },
+      { role: 'user', content: prompt }
+    ], 1500);
+
+    let data;
+    try { data = JSON.parse(response.replace(/```json|```/g, '').trim()); }
+    catch {
+      data = {
+        reasoning: '默认计划',
+        plan: [
+          { id: 1, action: 'search', description: '搜索相关信息' },
+          { id: 2, action: 'analyze', description: '分析整理' },
+          { id: 3, action: 'generate', description: '生成报告' }
+        ]
+      };
+    }
+
+    task.plan = (data.plan || []).map((p, i) => ({
+      id: i + 1, action: p.action || 'search',
+      description: p.description || '步骤 ' + (i + 1), status: 'pending'
+    }));
+    task.status = 'executing';
+    notify(task);
+  },
+
+  // ====== Execute ======
+  async _execute(task, notify) {
+    let allInfo = '';
+
+    for (const step of task.plan) {
+      if (!this._running) return;
+
+      step.status = 'in_progress';
+      task.currentStep = step.id;
+      notify(task);
+
+      const stepRecord = {
+        stepIndex: step.id, description: step.description,
+        action: step.action, status: 'in_progress', output: '', startedAt: new Date().toISOString()
+      };
+      task.steps.push(stepRecord);
+
+      try {
+        let output = '';
+
+        if (step.action === 'search') {
+          // 搜索步骤：使用单个关键词，避免超时
+          const queries = await this._getSearchQueries(task, step);
+          let searchResults = [];
+          for (const q of queries.slice(0, 1)) { // 只搜索1个关键词
+            try {
+              const results = await this._timeout(API.searchWeb(q), 8000);
+              searchResults = searchResults.concat(results);
+            } catch (e) { /* ignore */ }
+          }
+          output = '### 搜索结果：' + step.description + '\n\n';
+          for (const r of searchResults.slice(0, 8)) {
+            output += `- **${r.title}**: ${r.snippet}\n  来源: ${r.url}\n`;
+          }
+          allInfo += output + '\n';
+        } else {
+          // 分析/生成步骤
+          const prompt = `你是 shangtou.ai。当前执行任务步骤。
+
+任务：${task.description}
+步骤 ${step.id}/${task.plan.length}：${step.description}
+
+已收集信息：
+${allInfo.slice(0, 6000) || '（暂无）'}
+
+请执行此步骤并输出结果。用 Markdown 格式，简洁清晰。`;
+          
+          output = await this._timeout(API._callLLM([
+            { role: 'system', content: '你是 shangtou.ai 执行器。请直接输出步骤执行结果。' },
+            { role: 'user', content: prompt }
+          ], 3000), 20000);
+          allInfo += output + '\n';
+        }
+
+        stepRecord.output = output;
+        stepRecord.status = 'completed';
+        stepRecord.completedAt = new Date().toISOString();
+        step.status = 'completed';
+      } catch (e) {
+        console.warn('步骤 ' + step.id + ' 执行失败:', e.message);
+        // 即使单步失败也继续，用错误信息作为输出
+        stepRecord.output = '⚠️ 此步骤遇到问题: ' + e.message + '\n\n将继续执行下一步...';
+        stepRecord.status = 'completed'; // 标记为完成以继续
+        stepRecord.completedAt = new Date().toISOString();
+        step.status = 'completed';
+      }
+
+      notify(task);
+    }
+  },
+
+  async _getSearchQueries(task, step) {
+    const prompt = `为以下任务步骤生成1-3个搜索关键词（纯JSON数组）：
+
+任务：${task.description}
+步骤：${step.description}
+
+格式：["关键词1", "关键词2"]  只输出JSON数组。`;
+    
+    try {
+      const resp = await this._timeout(API._callLLM([
+        { role: 'system', content: '只输出 JSON 数组。' },
+        { role: 'user', content: prompt }
+      ], 300), 10000);
+      const cleaned = resp.replace(/```json|```/g, '').trim();
+      return JSON.parse(cleaned);
+    } catch {
+      return [task.description.slice(0, 50)];
+    }
+  },
+
+  // ====== Generate Final Report ======
+  async _generate(task, notify) {
+    task.status = 'generating';
+    notify(task);
+
+    const allOutputs = task.steps
+      .filter(s => s.output)
+      .map(s => s.output)
+      .join('\n\n---\n\n');
+
+    const prompt = `你是 shangtou.ai。请根据以下收集的信息生成一份完整的最终报告。
+
+原始任务：${task.description}
+
+收集到的信息：
+${allOutputs.slice(0, 10000)}
+
+请用 Markdown 格式输出一份结构清晰的报告。`;
+    
+    const report = await this._timeout(API._callLLM([
+      { role: 'system', content: '你是 shangtou.ai 报告生成器。请输出完整、结构清晰的 Markdown 报告。' },
+      { role: 'user', content: prompt }
+    ], 4096), 20000);
+
+    task.result = { content: report };
+    notify(task);
+  },
+};
+
+
+/**
+ * shangtou.ai — Sidebar 组件
+ */
+
+const Sidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isOpen, onClose, tasks, onTaskClick }) => {
+  const [tab, setTab] = React.useState('chat'); // chat | tasks
+
+  return (
+    <>
+      {isOpen && <div className="sidebar-overlay" onClick={onClose}></div>}
+      <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M8 12l3 3 5-5"/>
+            </svg>
+            shangtou.ai
+          </div>
+          <button className="new-chat-btn" onClick={onNew}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            新对话
+          </button>
+        </div>
+
+        <div className="sidebar-tabs">
+          <button className={`sidebar-tab ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>💬 对话</button>
+          <button className={`sidebar-tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>🤖 任务</button>
+        </div>
+
+        <div className="sidebar-history">
+          {tab === 'chat' && (
+            conversations.length === 0
+              ? <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: '13px' }}>暂无对话</div>
+              : conversations.map(conv => (
+                  <div key={conv.id} className={`history-item ${conv.id === activeId ? 'active' : ''}`}
+                    onClick={() => { onSelect(conv.id); onClose(); }}>
+                    <span className="history-item-title">{conv.title || '新对话'}</span>
+                    <button className="history-item-delete" onClick={e => { e.stopPropagation(); onDelete(conv.id); }}>✕</button>
+                  </div>
+                ))
+          )}
+          {tab === 'tasks' && (
+            tasks.length === 0
+              ? <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: '13px' }}>暂无任务</div>
+              : tasks.map(t => (
+                  <div key={t.id} className="history-item" onClick={() => onTaskClick(t.id)}>
+                    <span className="history-item-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{t.status === 'completed' ? '✅' : t.status === 'failed' ? '❌' : t.status === 'executing' ? '⏳' : '📋'}</span>
+                      {t.description.slice(0, 25)}
+                    </span>
+                  </div>
+                ))
+          )}
+        </div>
+
+        <div className="sidebar-footer">基于 GLM-4-Flash | 免费模型</div>
+      </div>
+    </>
+  );
+};
+
+
+/**
+ * shangtou.ai — MessageList 组件
+ */
+
+const MessageList = ({ messages, isLoading, isSearching, messagesEndRef }) => {
+  if (messages.length === 0) {
+    return (
+      <div className="message-list">
+        <div className="empty-state">
+          <div className="empty-state-icon">⚽</div>
+          <h2>你好，我是 shangtou.ai</h2>
+          <p>我可以回答问题、搜索信息、执行任务、分析数据。</p>
+          <div className="empty-state-features">
+            <div className="feature-card">
+              <div className="feature-card-icon">🤖</div>
+              <h3>AI Agent</h3>
+              <p>自主规划、执行、检查任务</p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-card-icon">🌐</div>
+              <h3>联网搜索</h3>
+              <p>自动搜索获取最新信息</p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-card-icon">📄</div>
+              <h3>文档分析</h3>
+              <p>上传 PDF/Word/TXT 问答</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="message-list">
+      {messages.map((msg, i) => (
+        <div key={i} className={`message ${msg.role === 'user' ? 'user' : 'assistant'}`}>
+          <div className="message-avatar">{msg.role === 'user' ? '👤' : '⚽'}</div>
+          <div className="message-content">
+            {msg.role === 'assistant' && msg.usedSearch && (
+              <div className="search-badge">🌐 已联网搜索</div>
+            )}
+            <div className="message-text" dangerouslySetInnerHTML={{
+              __html: typeof marked !== 'undefined' && msg.content ? marked.parse(msg.content) : (msg.content || '')
+            }} />
+            {msg.searchSources && msg.searchSources.length > 0 && (
+              <div className="search-sources">
+                {msg.searchSources.map((s, j) => (
+                  <a key={j} href={s.url} target="_blank" className="search-source-link">{s.title}</a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+      {(isLoading || isSearching) && (
+        <div className="message assistant">
+          <div className="message-avatar">⚽</div>
+          <div className="message-content">
+            <div className="typing-indicator">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+      )}
+      <div ref={messagesEndRef} />
+    </div>
+  );
+};
+
+
+/**
+ * shangtou.ai — InputBox 组件
+ */
+
+const InputBox = ({ onSend, onUpload, isLoading, hasDocument, documentName, onRemoveDocument, webSearchOn, onToggleWebSearch }) => {
+  const [text, setText] = React.useState('');
+  const textareaRef = React.useRef(null);
+
+  const handleSend = () => {
+    const trimmed = text.trim();
+    if (!trimmed || isLoading) return;
+    onSend(trimmed);
+    setText('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleInput = (e) => {
+    setText(e.target.value);
+    // 自适应高度
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  };
+
+  const handleUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.docx,.txt,.md';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) onUpload(file);
+    };
+    input.click();
+  };
+
+  return (
+    <div className="input-area-wrapper">
+      {hasDocument && (
+        <div className="doc-attachment">
+          <span>📄 {documentName}</span>
+          <button onClick={onRemoveDocument} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '14px' }}>✕</button>
+        </div>
+      )}
+      <div className="input-area">
+        <button className="input-btn" onClick={handleUpload} title="上传文档" disabled={isLoading}>📎</button>
+        <textarea ref={textareaRef} className="input-textarea" placeholder="向 shangtou.ai 提问，或输入 /task 开始任务..." rows="1"
+          value={text} onChange={handleInput} onKeyDown={handleKeyDown} disabled={isLoading} />
+        <button className="input-btn send-btn" onClick={handleSend} disabled={isLoading || !text.trim()}>➤</button>
+      </div>
+      <div className="input-hint">支持 PDF、DOCX、TXT、MD 上传 | shangtou.ai 基于 GLM-4-Flash | 联网搜索自动触发</div>
+    </div>
+  );
+};
+
+
+/**
+ * shangtou.ai — ChatArea 组件
+ */
+
+const ChatArea = ({ conversation, isLoading, isSearching, webSearchOn, onToggleWebSearch, onSendMessage, onUploadDocument, onRemoveDocument }) => {
+  const messagesEndRef = React.useRef(null);
+  const [error, setError] = React.useState('');
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
+  const messages = conversation?.messages || [];
+  const hasDocument = !!(conversation?.documentContext);
+  const documentName = conversation?.documentName || '';
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading, isSearching]);
+
+  React.useEffect(() => {
+    if (error) { const t = setTimeout(() => setError(''), 5000); return () => clearTimeout(t); }
+  }, [error]);
+
+  const conversations = Storage.getConversations();
+  const activeId = Storage.getActiveId();
+  const tasks = Storage.getTasks();
+
+  const handleSelectConv = (id) => { Storage.setActiveId(id); window.location.reload(); };
+  const handleNewConv = () => { Storage.createConversation(); window.location.reload(); };
+  const handleDeleteConv = (id) => { Storage.deleteConversation(id); window.location.reload(); };
+
+  return (
+    <div className="app-container">
+      <Sidebar
+        conversations={conversations} activeId={activeId}
+        onSelect={handleSelectConv} onNew={handleNewConv} onDelete={handleDeleteConv}
+        isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}
+        tasks={tasks} onTaskClick={(id) => window.dispatchEvent(new CustomEvent('st:showTask', { detail: id }))}
+      />
+
+      <div className="main-content">
+        <div className="chat-area">
+          <div className="chat-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button className="mobile-menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
+              <span className="chat-title">{conversation?.title || '新对话'}</span>
+            </div>
+            <div className="chat-header-actions">
+              <button className="input-btn" onClick={onToggleWebSearch} title={webSearchOn ? '联网中' : '联网关'}
+                style={{ width: 'auto', padding: '0 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                  background: webSearchOn ? 'rgba(34,197,94,0.15)' : 'transparent',
+                  border: webSearchOn ? '1px solid rgba(34,197,94,0.3)' : '1px solid var(--border-color)' }}>
+                🌐 {webSearchOn ? '联网中' : '联网关'}
+              </button>
+            </div>
+          </div>
+
+          {error && <div className="status-bar status-error"><span>⚠️ {error}</span><button onClick={() => setError('')} className="status-close">✕</button></div>}
+          {isSearching && <div className="status-bar status-searching"><span>🔍 正在搜索...</span></div>}
+
+          <MessageList messages={messages} isLoading={isLoading} isSearching={isSearching} messagesEndRef={messagesEndRef} />
+
+          <InputBox onSend={onSendMessage} onUpload={onUploadDocument} isLoading={isLoading}
+            hasDocument={hasDocument} documentName={documentName} onRemoveDocument={onRemoveDocument}
+            webSearchOn={webSearchOn} onToggleWebSearch={onToggleWebSearch} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+/**
+ * shangtou.ai — TaskPanel 组件（任务提交）
+ */
+
+const TaskPanel = ({ onStartTask, isLoading }) => {
+  const [text, setText] = React.useState('');
+  const [examples] = React.useState([
+    '帮我查一下今天深圳的天气怎么样',
+    '调研 React 19 的新特性并写一份报告',
+    '分析一下最近 AI 行业的重要新闻',
+    '帮我规划一个周末北京两日游行程',
+  ]);
+
+  const handleStart = () => {
+    if (!text.trim() || isLoading) return;
+    onStartTask(text.trim());
+  };
+
+  return (
+    <div className="task-panel">
+      <div className="task-panel-header">
+        <h2>🤖 Agent 任务</h2>
+        <p>shangtou.ai 会自动规划、搜索、分析、生成报告</p>
+      </div>
+      <div className="task-input-area">
+        <textarea className="task-textarea" placeholder="描述你的任务，例如：帮我调研 React 19 新特性并写一份报告..."
+          value={text} onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleStart(); } }}
+          rows={4} disabled={isLoading} />
+        <button className="task-start-btn" onClick={handleStart} disabled={isLoading || !text.trim()}>
+          {isLoading ? '⏳ 执行中...' : '🚀 开始执行'}
+        </button>
+      </div>
+      <div className="task-examples">
+        <h3>示例任务</h3>
+        <div className="task-example-list">
+          {examples.map((ex, i) => (
+            <div key={i} className="task-example-item" onClick={() => setText(ex)}>{ex}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+/**
+ * shangtou.ai — AgentStatus 组件（显示任务执行进度）
+ */
+
+const AgentStatus = ({ task, onCancel }) => {
+  if (!task) return null;
+
+  const statusText = {
+    planning: '📋 规划中...',
+    executing: '⚡ 执行中...',
+    generating: '📝 生成报告...',
+    completed: '✅ 已完成',
+    failed: '❌ 执行失败',
+    cancelled: '🚫 已取消',
+  };
+
+  const progress = task.plan.length > 0
+    ? Math.round((task.plan.filter(p => p.status === 'completed').length / task.plan.length) * 100)
+    : 0;
+
+  return (
+    <div className="agent-status">
+      <div className="agent-status-header">
+        <div>
+          <h3>{statusText[task.status] || task.status}</h3>
+          <p className="agent-task-desc">{task.description}</p>
+        </div>
+        {task.status === 'executing' && (
+          <button className="agent-cancel-btn" onClick={onCancel}>取消</button>
+        )}
+      </div>
+
+      {task.plan.length > 0 && (
+        <div className="agent-plan">
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: progress + '%' }}></div>
+          </div>
+          <div className="progress-text">{progress}%</div>
+          <div className="plan-steps">
+            {task.plan.map(step => (
+              <div key={step.id} className={`plan-step ${step.status}`}>
+                <span className="plan-step-icon">
+                  {step.status === 'completed' ? '✅' : step.status === 'in_progress' ? '⏳' : step.status === 'failed' ? '❌' : '⬜'}
+                </span>
+                <span className="plan-step-desc">{step.description}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {task.steps.filter(s => s.output).map(step => (
+        <div key={step.stepIndex} className="step-output">
+          <div className="step-output-header">步骤 {step.stepIndex}: {step.description}</div>
+          <div className="step-output-content" dangerouslySetInnerHTML={{
+            __html: typeof marked !== 'undefined' && step.output ? marked.parse(step.output) : (step.output || '')
+          }} />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+
+/**
+ * shangtou.ai — TaskResult 组件
+ */
+
+const TaskResult = ({ task, onClose }) => {
+  if (!task || !task.result) return null;
+
+  return (
+    <div className="task-result">
+      <div className="task-result-header">
+        <h3>📋 {task.description.slice(0, 60)}</h3>
+        <div className="task-result-actions">
+          <button className="task-result-btn" onClick={() => {
+            const blob = new Blob([task.result.content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'report.md'; a.click();
+            URL.revokeObjectURL(url);
+          }}>📥 下载报告</button>
+          <button className="task-result-btn" onClick={onClose}>✕ 关闭</button>
+        </div>
+      </div>
+      <div className="task-result-content" dangerouslySetInnerHTML={{
+        __html: typeof marked !== 'undefined' && task.result.content ? marked.parse(task.result.content) : (task.result.content || '')
+      }} />
+    </div>
+  );
+};
+
+
+/**
+ * shangtou.ai — 主应用入口
+ */
+
+const App = () => {
+  const [conversation, setConversation] = React.useState(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isSearching, setIsSearching] = React.useState(false);
+  const [webSearchOn, setWebSearchOn] = React.useState(true);
+  const [mode, setMode] = React.useState('chat');
+  const [task, setTask] = React.useState(null);
+  const [taskResult, setTaskResult] = React.useState(null);
+  const messagesEndRef = React.useRef(null);
+
+  // 初始化
+  React.useEffect(() => {
+    let activeId = Storage.getActiveId();
+    let conv = activeId ? Storage.getConversation(activeId) : null;
+    if (!conv) conv = Storage.createConversation('新对话');
+    setConversation(conv);
+
+    const saved = localStorage.getItem('st_web_search');
+    if (saved !== null) setWebSearchOn(saved === 'true');
+
+    // 监听任务展示事件
+    const handler = (e) => {
+      const t = Storage.getTask(e.detail);
+      if (t) { setTaskResult(t); setMode('result'); }
+    };
+    window.addEventListener('st:showTask', handler);
+    return () => window.removeEventListener('st:showTask', handler);
+  }, []);
+
+  const toggleWebSearch = () => {
+    const next = !webSearchOn;
+    setWebSearchOn(next);
+    localStorage.setItem('st_web_search', String(next));
+  };
+
+  // 聊天：发送消息
+  const handleSendMessage = async (text) => {
+    if (!conversation) return;
+    const userMessage = { role: 'user', content: text, timestamp: new Date().toISOString() };
+    Storage.addMessage(conversation.id, userMessage);
+    const updatedConv = Storage.getConversation(conversation.id);
+    setConversation(updatedConv);
+
+    // 检测 /task 命令
+    if (userMessage.content.startsWith('/task ')) {
+      const desc = userMessage.content.replace('/task ', '').trim();
+      if (desc) {
+        handleStartTask(desc);
+        return;
+      }
+    }
+
+    setIsLoading(true);
+    try {
+      const allMessages = updatedConv.messages;
+      const docContext = updatedConv.documentContext || '';
+      const userText = userMessage.content;
+
+      let searchContext = '';
+      let searchSources = [];
+      if (webSearchOn && API.shouldSearch(userText)) {
+        setIsSearching(true);
+        try {
+          const results = await API.searchWeb(userText);
+          searchSources = results;
+          searchContext = results.map(r => `- ${r.title}: ${r.snippet}`).join('\n');
+        } catch (e) { /* ignore */ }
+        setIsSearching(false);
+      }
+
+      const result = await API.chat(allMessages, docContext, searchContext);
+
+      const aiMessage = {
+        role: 'assistant',
+        content: result.reply,
+        timestamp: new Date().toISOString(),
+        searchSources: searchSources.length > 0 ? searchSources : null,
+        usedSearch: searchContext.length > 0,
+      };
+      Storage.addMessage(conversation.id, aiMessage);
+      setConversation(Storage.getConversation(conversation.id));
+    } catch (error) {
+      const errMsg = {
+        role: 'assistant',
+        content: '❌ **出错了**：' + error.message,
+        timestamp: new Date().toISOString(),
+      };
+      Storage.addMessage(conversation.id, errMsg);
+      setConversation(Storage.getConversation(conversation.id));
+    } finally {
+      setIsLoading(false);
+      setIsSearching(false);
+    }
+  };
+
+  // Agent：启动任务
+  const handleStartTask = async (description) => {
+    setMode('task');
+    setIsLoading(true);
+    setTask(null);
+
+    try {
+      await AgentEngine.runTask(description, (t) => {
+        setTask(t);
+        if (t.status === 'completed' || t.status === 'failed') {
+          Storage.saveTask(t);
+          setIsLoading(false);
+          if (t.status === 'completed') {
+            setTaskResult(t);
+            setMode('result');
+          }
+        }
+      });
+    } catch (e) {
+      setIsLoading(false);
+    }
+  };
+
+  // 取消任务
+  const handleCancelTask = () => {
+    AgentEngine.cancel();
+    setIsLoading(false);
+  };
+
+  // 文档处理
+  const handleUploadDocument = async (file) => {
+    // 简单文件读取
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      Storage.updateConversation(conversation.id, {
+        documentContext: e.target.result,
+        documentName: file.name,
+      });
+      setConversation(Storage.getConversation(conversation.id));
+    };
+    if (file.type === 'application/pdf') {
+      // PDF 需要 pdf.js，先简单提示
+      Storage.updateConversation(conversation.id, {
+        documentContext: '[PDF 文件: ' + file.name + ']',
+        documentName: file.name,
+      });
+      setConversation(Storage.getConversation(conversation.id));
+    } else {
+      reader.readAsText(file);
+    }
+  };
+
+  const handleRemoveDocument = () => {
+    Storage.updateConversation(conversation.id, { documentContext: '', documentName: '' });
+    setConversation(Storage.getConversation(conversation.id));
+  };
+
+  if (!conversation) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-muted)' }}>加载中...</div>;
+  }
+
+  return (
+    <div className="app-container">
+      <Sidebar
+        conversations={Storage.getConversations()}
+        activeId={Storage.getActiveId()}
+        onSelect={(id) => { Storage.setActiveId(id); window.location.reload(); }}
+        onNew={() => { Storage.createConversation(); window.location.reload(); }}
+        onDelete={(id) => { Storage.deleteConversation(id); window.location.reload(); }}
+        isOpen={false}
+        onClose={() => {}}
+        tasks={Storage.getTasks()}
+        onTaskClick={(id) => {
+          const t = Storage.getTask(id);
+          if (t) { setTaskResult(t); setMode('result'); }
+        }}
+      />
+
+      <div className="main-content">
+        {/* Mode Tabs */}
+        <div className="mode-tabs">
+          <button className={`mode-tab ${mode === 'chat' ? 'active' : ''}`} onClick={() => setMode('chat')}>
+            💬 对话
+          </button>
+          <button className={`mode-tab ${mode === 'task' ? 'active' : ''}`} onClick={() => setMode('task')}>
+            🤖 Agent 任务
+          </button>
+          {taskResult && (
+            <button className={`mode-tab ${mode === 'result' ? 'active' : ''}`} onClick={() => setMode('result')}>
+              📋 结果
+            </button>
+          )}
+        </div>
+
+        {mode === 'chat' && (
+          <div className="chat-area">
+            <div className="chat-header">
+              <span className="chat-title">{conversation?.title || 'shangtou.ai'}</span>
+              <div className="chat-header-actions">
+                <button className="input-btn" onClick={toggleWebSearch} title={webSearchOn ? '联网中' : '联网关'}
+                  style={{ width: 'auto', padding: '0 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                    background: webSearchOn ? 'rgba(34,197,94,0.15)' : 'transparent',
+                    border: webSearchOn ? '1px solid rgba(34,197,94,0.3)' : '1px solid var(--border-color)' }}>
+                  🌐 {webSearchOn ? '联网中' : '联网关'}
+                </button>
+              </div>
+            </div>
+            {isSearching && <div className="status-bar status-searching"><span>🔍 正在搜索...</span></div>}
+            <MessageList messages={conversation?.messages || []} isLoading={isLoading && mode === 'chat'} isSearching={isSearching} messagesEndRef={messagesEndRef} />
+            <InputBox onSend={handleSendMessage} onUpload={handleUploadDocument} isLoading={isLoading}
+              hasDocument={!!(conversation?.documentContext)} documentName={conversation?.documentName || ''}
+              onRemoveDocument={handleRemoveDocument} />
+          </div>
+        )}
+
+        {mode === 'task' && (
+          task ? (
+            <div className="chat-area">
+              <AgentStatus task={task} onCancel={handleCancelTask} />
+            </div>
+          ) : (
+            <TaskPanel onStartTask={handleStartTask} isLoading={isLoading} />
+          )
+        )}
+
+        {mode === 'result' && taskResult && (
+          <div className="chat-area">
+            <TaskResult task={taskResult} onClose={() => { setTaskResult(null); setMode('task'); }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.render(React.createElement(App), document.getElementById('root'));
+
+  </script>
+</body>
+</html>
