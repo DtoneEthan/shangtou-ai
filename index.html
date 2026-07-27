@@ -360,6 +360,33 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.22); }
 
+/* ========== Works（Ethan. X 工作室作品） ========== */
+.works-page { flex: 1; overflow-y: auto; }
+.works-inner { max-width: 940px; margin: 0 auto; padding: 40px 20px 52px; }
+.works-header { text-align: center; margin-bottom: 32px; }
+.works-logo {
+  width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
+  margin: 0 auto 16px; box-shadow: var(--shadow-md); border: 3px solid #fff; display: block;
+}
+.works-header h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.3px; }
+.works-header p { color: var(--text-secondary); font-size: 14px; max-width: 480px; margin: 0 auto; line-height: 1.65; }
+.works-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 16px; }
+.work-card {
+  display: flex; flex-direction: column; gap: 9px;
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: var(--radius); padding: 18px; text-decoration: none;
+  color: var(--text-primary); box-shadow: var(--shadow-sm); transition: var(--transition);
+}
+.work-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--accent); }
+.work-card-icon { font-size: 26px; line-height: 1; }
+.work-card-title { font-size: 16px; font-weight: 700; }
+.work-card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.65; flex: 1; }
+.work-card-link {
+  margin-top: 4px; align-self: flex-start; font-size: 13px; font-weight: 600;
+  color: var(--accent); background: var(--accent-soft); padding: 5px 14px; border-radius: 999px; transition: var(--transition);
+}
+.work-card:hover .work-card-link { background: var(--accent); color: #fff; }
+
   </style>
 </head>
 <body>
@@ -2169,241 +2196,6 @@ const API = {
 };
 
 /**
- * BOBO聊天机器人 — Agent 引擎
- * Plan → Execute → Observe → Generate 循环
- */
-
-const AgentEngine = {
-  _running: false,
-  _onUpdate: null,
-  async runTask(description, onUpdate) {
-    if (this._running) throw new Error('已有任务运行中');
-    this._running = true;
-    this._onUpdate = onUpdate;
-    const task = {
-      id: 't_' + Date.now(),
-      description,
-      status: 'planning',
-      plan: [],
-      currentStep: 0,
-      steps: [],
-      result: null,
-      createdAt: new Date().toISOString()
-    };
-    const notify = t => {
-      t.updatedAt = new Date().toISOString();
-      onUpdate({
-        ...t
-      });
-    };
-    try {
-      // 全局超时 60 秒
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('任务执行超时（60秒）')), 60000);
-      });
-      await Promise.race([(async () => {
-        // Phase 1: Plan
-        notify(task);
-        await this._plan(task, notify);
-        // Phase 2: Execute
-        await this._execute(task, notify);
-        // Phase 3: Generate final report
-        await this._generate(task, notify);
-      })(), timeoutPromise]);
-      task.status = 'completed';
-      notify(task);
-    } catch (e) {
-      if (this._running) {
-        task.status = 'failed';
-        task.result = {
-          content: '❌ ' + e.message
-        };
-        notify(task);
-      }
-    } finally {
-      this._running = false;
-    }
-    return task;
-  },
-  cancel() {
-    this._running = false;
-  },
-  _timeout(promise, ms) {
-    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
-  },
-  // ====== Plan ======
-  async _plan(task, notify) {
-    const prompt = `你是 BOBO聊天机器人 Agent。请为以下任务制定执行计划，以 JSON 格式输出：
-
-任务：${task.description}
-
-输出格式：
-{
-  "reasoning": "分析（一句话）",
-  "plan": [
-    {"id": 1, "action": "search", "description": "搜索XX"},
-    {"id": 2, "action": "analyze", "description": "分析XX"},
-    {"id": 3, "action": "generate", "description": "生成最终结果"}
-  ]
-}
-
-3-5步，action 为 search/analyze/generate。只输出 JSON。`;
-    const response = await API._callLLM([{
-      role: 'system',
-      content: '你是任务规划专家，只输出 JSON。'
-    }, {
-      role: 'user',
-      content: prompt
-    }], 1500);
-    let data;
-    try {
-      data = JSON.parse(response.replace(/```json|```/g, '').trim());
-    } catch {
-      data = {
-        reasoning: '默认计划',
-        plan: [{
-          id: 1,
-          action: 'search',
-          description: '搜索相关信息'
-        }, {
-          id: 2,
-          action: 'analyze',
-          description: '分析整理'
-        }, {
-          id: 3,
-          action: 'generate',
-          description: '生成报告'
-        }]
-      };
-    }
-    task.plan = (data.plan || []).map((p, i) => ({
-      id: i + 1,
-      action: p.action || 'search',
-      description: p.description || '步骤 ' + (i + 1),
-      status: 'pending'
-    }));
-    task.status = 'executing';
-    notify(task);
-  },
-  // ====== Execute ======
-  async _execute(task, notify) {
-    let allInfo = '';
-    for (const step of task.plan) {
-      if (!this._running) return;
-      step.status = 'in_progress';
-      task.currentStep = step.id;
-      notify(task);
-      const stepRecord = {
-        stepIndex: step.id,
-        description: step.description,
-        action: step.action,
-        status: 'in_progress',
-        output: '',
-        startedAt: new Date().toISOString()
-      };
-      task.steps.push(stepRecord);
-      try {
-        let output = '';
-        if (step.action === 'search') {
-          // 搜索步骤：使用单个关键词，避免超时
-          const queries = await this._getSearchQueries(task, step);
-          let searchResults = [];
-          for (const q of queries.slice(0, 1)) {
-            // 只搜索1个关键词
-            try {
-              const results = await this._timeout(API.searchWeb(q), 8000);
-              searchResults = searchResults.concat(results);
-            } catch (e) {/* ignore */}
-          }
-          output = '### 搜索结果：' + step.description + '\n\n';
-          for (const r of searchResults.slice(0, 8)) {
-            output += `- **${r.title}**: ${r.snippet}\n  来源: ${r.url}\n`;
-          }
-          allInfo += output + '\n';
-        } else {
-          // 分析/生成步骤
-          const prompt = `你是 BOBO聊天机器人。当前执行任务步骤。
-
-任务：${task.description}
-步骤 ${step.id}/${task.plan.length}：${step.description}
-
-已收集信息：
-${allInfo.slice(0, 6000) || '（暂无）'}
-
-请执行此步骤并输出结果。用 Markdown 格式，简洁清晰，可自然加入少量 emoji 让表达更生动。`;
-          output = await this._timeout(API._callLLM([{
-            role: 'system',
-            content: '你是 BOBO聊天机器人 执行器。请直接输出步骤执行结果。'
-          }, {
-            role: 'user',
-            content: prompt
-          }], 3000), 20000);
-          allInfo += output + '\n';
-        }
-        stepRecord.output = output;
-        stepRecord.status = 'completed';
-        stepRecord.completedAt = new Date().toISOString();
-        step.status = 'completed';
-      } catch (e) {
-        console.warn('步骤 ' + step.id + ' 执行失败:', e.message);
-        // 即使单步失败也继续，用错误信息作为输出
-        stepRecord.output = '⚠️ 此步骤遇到问题: ' + e.message + '\n\n将继续执行下一步...';
-        stepRecord.status = 'completed'; // 标记为完成以继续
-        stepRecord.completedAt = new Date().toISOString();
-        step.status = 'completed';
-      }
-      notify(task);
-    }
-  },
-  async _getSearchQueries(task, step) {
-    const prompt = `为以下任务步骤生成1-3个搜索关键词（纯JSON数组）：
-
-任务：${task.description}
-步骤：${step.description}
-
-格式：["关键词1", "关键词2"]  只输出JSON数组。`;
-    try {
-      const resp = await this._timeout(API._callLLM([{
-        role: 'system',
-        content: '只输出 JSON 数组。'
-      }, {
-        role: 'user',
-        content: prompt
-      }], 300), 10000);
-      const cleaned = resp.replace(/```json|```/g, '').trim();
-      return JSON.parse(cleaned);
-    } catch {
-      return [task.description.slice(0, 50)];
-    }
-  },
-  // ====== Generate Final Report ======
-  async _generate(task, notify) {
-    task.status = 'generating';
-    notify(task);
-    const allOutputs = task.steps.filter(s => s.output).map(s => s.output).join('\n\n---\n\n');
-    const prompt = `你是 BOBO聊天机器人。请根据以下收集的信息生成一份完整的最终报告。
-
-原始任务：${task.description}
-
-收集到的信息：
-${allOutputs.slice(0, 10000)}
-
-请用 Markdown 格式输出一份结构清晰的报告，语气亲切自然，可加入适量 emoji 让报告更生动。`;
-    const report = await this._timeout(API._callLLM([{
-      role: 'system',
-      content: '你是 BOBO聊天机器人 报告生成器。请输出完整、结构清晰的 Markdown 报告。'
-    }, {
-      role: 'user',
-      content: prompt
-    }], 4096), 20000);
-    task.result = {
-      content: report
-    };
-    notify(task);
-  }
-};
-
-/**
  * BOBO聊天机器人 — Sidebar 组件
  */
 
@@ -2414,12 +2206,8 @@ const Sidebar = ({
   onNew,
   onDelete,
   isOpen,
-  onClose,
-  tasks,
-  onTaskClick
+  onClose
 }) => {
-  const [tab, setTab] = React.useState('chat'); // chat | tasks
-
   return /*#__PURE__*/React.createElement(React.Fragment, null, isOpen && /*#__PURE__*/React.createElement("div", {
     className: "sidebar-overlay",
     onClick: onClose
@@ -2460,16 +2248,8 @@ const Sidebar = ({
     x2: "19",
     y2: "12"
   })), "\u65B0\u5BF9\u8BDD")), /*#__PURE__*/React.createElement("div", {
-    className: "sidebar-tabs"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: `sidebar-tab ${tab === 'chat' ? 'active' : ''}`,
-    onClick: () => setTab('chat')
-  }, "\uD83D\uDCAC \u5BF9\u8BDD"), /*#__PURE__*/React.createElement("button", {
-    className: `sidebar-tab ${tab === 'tasks' ? 'active' : ''}`,
-    onClick: () => setTab('tasks')
-  }, "\uD83E\uDD16 \u4EFB\u52A1")), /*#__PURE__*/React.createElement("div", {
     className: "sidebar-history"
-  }, tab === 'chat' && (conversations.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, conversations.length === 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: 'center',
       padding: '30px 20px',
@@ -2491,25 +2271,7 @@ const Sidebar = ({
       e.stopPropagation();
       onDelete(conv.id);
     }
-  }, "\u2715")))), tab === 'tasks' && (tasks.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'center',
-      padding: '30px 20px',
-      color: 'var(--text-muted)',
-      fontSize: '13px'
-    }
-  }, "\u6682\u65E0\u4EFB\u52A1") : tasks.map(t => /*#__PURE__*/React.createElement("div", {
-    key: t.id,
-    className: "history-item",
-    onClick: () => onTaskClick(t.id)
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "history-item-title",
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px'
-    }
-  }, /*#__PURE__*/React.createElement("span", null, t.status === 'completed' ? '✅' : t.status === 'failed' ? '❌' : t.status === 'executing' ? '⏳' : '📋'), t.description.slice(0, 25)))))), /*#__PURE__*/React.createElement("div", {
+  }, "\u2715")))), /*#__PURE__*/React.createElement("div", {
     className: "sidebar-footer"
   }, "\u57FA\u4E8E\u56FD\u5185\u5927\u6A21\u578B\u514D\u8D39API \u975E\u5546\u7528 | \u4EC5\u4F9B\u5B66\u4E60\u4EA4\u6D41")));
 };
@@ -2806,150 +2568,84 @@ const ChatArea = ({
 };
 
 /**
- * BOBO聊天机器人 — TaskPanel 组件（任务提交）
+ * BOBO聊天机器人 — Works 组件（Ethan. X 工作室作品）
+ * 取代原 Agent 任务功能
  */
 
-const TaskPanel = ({
-  onStartTask,
-  isLoading
-}) => {
-  const [text, setText] = React.useState('');
-  const [examples] = React.useState(['帮我查一下今天深圳的天气怎么样', '调研 React 19 的新特性并写一份报告', '分析一下最近 AI 行业的重要新闻', '帮我规划一个周末北京两日游行程']);
-  const handleStart = () => {
-    if (!text.trim() || isLoading) return;
-    onStartTask(text.trim());
-  };
+const WORKS = [{
+  icon: '🧩',
+  title: 'Polyglot Crossword',
+  desc: '多语言填字游戏，支持英语 / 西班牙语 / 中文 / 法语四种语言切换闯关。',
+  url: 'https://dtoneethan.github.io/polyglot-crossword/'
+}, {
+  icon: '🧠',
+  title: 'MBTI 人格测试',
+  desc: 'MBTI 人格测试，帮你发现隐藏的人格密码与性格特点。',
+  url: 'https://dtoneethan.github.io/mbti-test/'
+}, {
+  icon: '♟️',
+  title: '东嘉象棋',
+  desc: '东嘉象棋人机对战，随时来一局中国象棋过过瘾。',
+  url: 'https://dtoneethan.github.io/dongjia-xiangqi/'
+}, {
+  icon: '📦',
+  title: 'PackFlow',
+  desc: '包装与装载一站式平台，让打包、装载规划更省心高效。',
+  url: 'https://dtoneethan.github.io/packflow/'
+}, {
+  icon: '📍',
+  title: 'GeoPlace',
+  desc: '地名一键转经纬度，快速查询任意地点的地理坐标。',
+  url: 'https://dtoneethan.github.io/geoplace/'
+}, {
+  icon: '🔳',
+  title: '条形码 & 二维码生成器',
+  desc: '条形码与二维码生成器，一键生成各类码并下载。',
+  url: 'https://dtoneethan.github.io/barcode-generator/'
+}, {
+  icon: '🔄',
+  title: '单位换算器',
+  desc: '单位换算器，支持批量文本快速换算各种常用单位。',
+  url: 'https://dtoneethan.github.io/unit-converter/'
+}, {
+  icon: '🪙',
+  title: '电子筊杯',
+  desc: '电子筊杯问神，在线掷杯知吉凶，求个心安。',
+  url: 'https://dtoneethan.github.io/jiaobei-divination/'
+}, {
+  icon: '🔮',
+  title: '星语塔罗',
+  desc: '星语塔罗在线占卜，给你的疑问一个温柔的答案。',
+  url: 'https://dtoneethan.github.io/tarot-divination/'
+}];
+const Works = () => {
   return /*#__PURE__*/React.createElement("div", {
-    className: "task-panel"
+    className: "works-page"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "task-panel-header"
-  }, /*#__PURE__*/React.createElement("h2", null, "\uD83E\uDD16 Agent \u4EFB\u52A1"), /*#__PURE__*/React.createElement("p", null, "BOBO\u804A\u5929\u673A\u5668\u4EBA \u4F1A\u81EA\u52A8\u89C4\u5212\u3001\u641C\u7D22\u3001\u5206\u6790\u3001\u751F\u6210\u62A5\u544A")), /*#__PURE__*/React.createElement("div", {
-    className: "task-input-area"
-  }, /*#__PURE__*/React.createElement("textarea", {
-    className: "task-textarea",
-    placeholder: "\u63CF\u8FF0\u4F60\u7684\u4EFB\u52A1\uFF0C\u4F8B\u5982\uFF1A\u5E2E\u6211\u8C03\u7814 React 19 \u65B0\u7279\u6027\u5E76\u5199\u4E00\u4EFD\u62A5\u544A...",
-    value: text,
-    onChange: e => setText(e.target.value),
-    onKeyDown: e => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleStart();
-      }
-    },
-    rows: 4,
-    disabled: isLoading
-  }), /*#__PURE__*/React.createElement("button", {
-    className: "task-start-btn",
-    onClick: handleStart,
-    disabled: isLoading || !text.trim()
-  }, isLoading ? '⏳ 执行中...' : '🚀 开始执行')), /*#__PURE__*/React.createElement("div", {
-    className: "task-examples"
-  }, /*#__PURE__*/React.createElement("h3", null, "\u793A\u4F8B\u4EFB\u52A1"), /*#__PURE__*/React.createElement("div", {
-    className: "task-example-list"
-  }, examples.map((ex, i) => /*#__PURE__*/React.createElement("div", {
+    className: "works-inner"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "works-header"
+  }, /*#__PURE__*/React.createElement("img", {
+    className: "works-logo",
+    src: CAT_AVATAR,
+    alt: "Ethan X"
+  }), /*#__PURE__*/React.createElement("h2", null, "Ethan. X \u5DE5\u4F5C\u5BA4\u4F5C\u54C1"), /*#__PURE__*/React.createElement("p", null, "\u4F5C\u8005 Ethan X \u6253\u9020\u7684\u4E00\u7CFB\u5217\u5C0F\u5DE5\u5177\u4E0E\u8DA3\u5473\u5E94\u7528\uFF0C\u70B9\u5F00\u4EFB\u610F\u4E00\u6B3E\u5373\u53EF\u4F53\u9A8C \u2728")), /*#__PURE__*/React.createElement("div", {
+    className: "works-grid"
+  }, WORKS.map((w, i) => /*#__PURE__*/React.createElement("a", {
     key: i,
-    className: "task-example-item",
-    onClick: () => setText(ex)
-  }, ex)))));
-};
-
-/**
- * BOBO聊天机器人 — AgentStatus 组件（显示任务执行进度）
- */
-
-const AgentStatus = ({
-  task,
-  onCancel
-}) => {
-  if (!task) return null;
-  const statusText = {
-    planning: '📋 规划中...',
-    executing: '⚡ 执行中...',
-    generating: '📝 生成报告...',
-    completed: '✅ 已完成',
-    failed: '❌ 执行失败',
-    cancelled: '🚫 已取消'
-  };
-  const progress = task.plan.length > 0 ? Math.round(task.plan.filter(p => p.status === 'completed').length / task.plan.length * 100) : 0;
-  return /*#__PURE__*/React.createElement("div", {
-    className: "agent-status"
+    className: "work-card",
+    href: w.url,
+    target: "_blank",
+    rel: "noopener noreferrer"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "agent-status-header"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", null, statusText[task.status] || task.status), /*#__PURE__*/React.createElement("p", {
-    className: "agent-task-desc"
-  }, task.description)), task.status === 'executing' && /*#__PURE__*/React.createElement("button", {
-    className: "agent-cancel-btn",
-    onClick: onCancel
-  }, "\u53D6\u6D88")), task.plan.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "agent-plan"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "progress-bar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "progress-fill",
-    style: {
-      width: progress + '%'
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "progress-text"
-  }, progress, "%"), /*#__PURE__*/React.createElement("div", {
-    className: "plan-steps"
-  }, task.plan.map(step => /*#__PURE__*/React.createElement("div", {
-    key: step.id,
-    className: `plan-step ${step.status}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "plan-step-icon"
-  }, step.status === 'completed' ? '✅' : step.status === 'in_progress' ? '⏳' : step.status === 'failed' ? '❌' : '⬜'), /*#__PURE__*/React.createElement("span", {
-    className: "plan-step-desc"
-  }, step.description))))), task.steps.filter(s => s.output).map(step => /*#__PURE__*/React.createElement("div", {
-    key: step.stepIndex,
-    className: "step-output"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "step-output-header"
-  }, "\u6B65\u9AA4 ", step.stepIndex, ": ", step.description), /*#__PURE__*/React.createElement("div", {
-    className: "step-output-content",
-    dangerouslySetInnerHTML: {
-      __html: typeof marked !== 'undefined' && step.output ? marked.parse(step.output) : step.output || ''
-    }
-  }))));
-};
-
-/**
- * BOBO聊天机器人 — TaskResult 组件
- */
-
-const TaskResult = ({
-  task,
-  onClose
-}) => {
-  if (!task || !task.result) return null;
-  return /*#__PURE__*/React.createElement("div", {
-    className: "task-result"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "task-result-header"
-  }, /*#__PURE__*/React.createElement("h3", null, "\uD83D\uDCCB ", task.description.slice(0, 60)), /*#__PURE__*/React.createElement("div", {
-    className: "task-result-actions"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "task-result-btn",
-    onClick: () => {
-      const blob = new Blob([task.result.content], {
-        type: 'text/markdown'
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'report.md';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  }, "\uD83D\uDCE5 \u4E0B\u8F7D\u62A5\u544A"), /*#__PURE__*/React.createElement("button", {
-    className: "task-result-btn",
-    onClick: onClose
-  }, "\u2715 \u5173\u95ED"))), /*#__PURE__*/React.createElement("div", {
-    className: "task-result-content",
-    dangerouslySetInnerHTML: {
-      __html: typeof marked !== 'undefined' && task.result.content ? marked.parse(task.result.content) : task.result.content || ''
-    }
-  }));
+    className: "work-card-icon"
+  }, w.icon), /*#__PURE__*/React.createElement("div", {
+    className: "work-card-title"
+  }, w.title), /*#__PURE__*/React.createElement("div", {
+    className: "work-card-desc"
+  }, w.desc), /*#__PURE__*/React.createElement("div", {
+    className: "work-card-link"
+  }, "\u6253\u5F00 \u2197"))))));
 };
 
 /**
@@ -2962,8 +2658,6 @@ const App = () => {
   const [isSearching, setIsSearching] = React.useState(false);
   const [webSearchOn, setWebSearchOn] = React.useState(true);
   const [mode, setMode] = React.useState('chat');
-  const [task, setTask] = React.useState(null);
-  const [taskResult, setTaskResult] = React.useState(null);
   const messagesEndRef = React.useRef(null);
 
   // 初始化
@@ -2974,17 +2668,6 @@ const App = () => {
     setConversation(conv);
     const saved = localStorage.getItem('st_web_search');
     if (saved !== null) setWebSearchOn(saved === 'true');
-
-    // 监听任务展示事件
-    const handler = e => {
-      const t = Storage.getTask(e.detail);
-      if (t) {
-        setTaskResult(t);
-        setMode('result');
-      }
-    };
-    window.addEventListener('st:showTask', handler);
-    return () => window.removeEventListener('st:showTask', handler);
   }, []);
   const toggleWebSearch = () => {
     const next = !webSearchOn;
@@ -3003,15 +2686,6 @@ const App = () => {
     Storage.addMessage(conversation.id, userMessage);
     const updatedConv = Storage.getConversation(conversation.id);
     setConversation(updatedConv);
-
-    // 检测 /task 命令
-    if (userMessage.content.startsWith('/task ')) {
-      const desc = userMessage.content.replace('/task ', '').trim();
-      if (desc) {
-        handleStartTask(desc);
-        return;
-      }
-    }
     setIsLoading(true);
     try {
       const allMessages = updatedConv.messages;
@@ -3041,7 +2715,7 @@ const App = () => {
     } catch (error) {
       const errMsg = {
         role: 'assistant',
-        content: '❌ **出错了**：' + error.message,
+        content: '? **出错了**：' + error.message,
         timestamp: new Date().toISOString()
       };
       Storage.addMessage(conversation.id, errMsg);
@@ -3050,34 +2724,6 @@ const App = () => {
       setIsLoading(false);
       setIsSearching(false);
     }
-  };
-
-  // Agent：启动任务
-  const handleStartTask = async description => {
-    setMode('task');
-    setIsLoading(true);
-    setTask(null);
-    try {
-      await AgentEngine.runTask(description, t => {
-        setTask(t);
-        if (t.status === 'completed' || t.status === 'failed') {
-          Storage.saveTask(t);
-          setIsLoading(false);
-          if (t.status === 'completed') {
-            setTaskResult(t);
-            setMode('result');
-          }
-        }
-      });
-    } catch (e) {
-      setIsLoading(false);
-    }
-  };
-
-  // 取消任务
-  const handleCancelTask = () => {
-    AgentEngine.cancel();
-    setIsLoading(false);
   };
 
   // 文档处理
@@ -3138,15 +2784,7 @@ const App = () => {
       window.location.reload();
     },
     isOpen: false,
-    onClose: () => {},
-    tasks: Storage.getTasks(),
-    onTaskClick: id => {
-      const t = Storage.getTask(id);
-      if (t) {
-        setTaskResult(t);
-        setMode('result');
-      }
-    }
+    onClose: () => {}
   }), /*#__PURE__*/React.createElement("div", {
     className: "main-content"
   }, /*#__PURE__*/React.createElement("div", {
@@ -3154,13 +2792,10 @@ const App = () => {
   }, /*#__PURE__*/React.createElement("button", {
     className: `mode-tab ${mode === 'chat' ? 'active' : ''}`,
     onClick: () => setMode('chat')
-  }, "\uD83D\uDCAC \u5BF9\u8BDD"), /*#__PURE__*/React.createElement("button", {
-    className: `mode-tab ${mode === 'task' ? 'active' : ''}`,
-    onClick: () => setMode('task')
-  }, "\uD83E\uDD16 Agent \u4EFB\u52A1"), taskResult && /*#__PURE__*/React.createElement("button", {
-    className: `mode-tab ${mode === 'result' ? 'active' : ''}`,
-    onClick: () => setMode('result')
-  }, "\uD83D\uDCCB \u7ED3\u679C")), mode === 'chat' && /*#__PURE__*/React.createElement("div", {
+  }, "? \u5BF9\u8BDD"), /*#__PURE__*/React.createElement("button", {
+    className: `mode-tab ${mode === 'works' ? 'active' : ''}`,
+    onClick: () => setMode('works')
+  }, "? \u4F5C\u54C1")), mode === 'chat' && /*#__PURE__*/React.createElement("div", {
     className: "chat-area"
   }, /*#__PURE__*/React.createElement("div", {
     className: "chat-header"
@@ -3180,9 +2815,9 @@ const App = () => {
       background: webSearchOn ? 'rgba(34,197,94,0.15)' : 'transparent',
       border: webSearchOn ? '1px solid rgba(34,197,94,0.3)' : '1px solid var(--border-color)'
     }
-  }, "\uD83C\uDF10 ", webSearchOn ? '联网中' : '联网关'))), isSearching && /*#__PURE__*/React.createElement("div", {
+  }, "? ", webSearchOn ? '联网中' : '联网关'))), isSearching && /*#__PURE__*/React.createElement("div", {
     className: "status-bar status-searching"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDD0D \u6B63\u5728\u641C\u7D22...")), /*#__PURE__*/React.createElement(MessageList, {
+  }, /*#__PURE__*/React.createElement("span", null, "? \u6B63\u5728\u641C\u7D22...")), /*#__PURE__*/React.createElement(MessageList, {
     messages: conversation?.messages || [],
     isLoading: isLoading && mode === 'chat',
     isSearching: isSearching,
@@ -3194,23 +2829,7 @@ const App = () => {
     hasDocument: !!conversation?.documentContext,
     documentName: conversation?.documentName || '',
     onRemoveDocument: handleRemoveDocument
-  })), mode === 'task' && (task ? /*#__PURE__*/React.createElement("div", {
-    className: "chat-area"
-  }, /*#__PURE__*/React.createElement(AgentStatus, {
-    task: task,
-    onCancel: handleCancelTask
-  })) : /*#__PURE__*/React.createElement(TaskPanel, {
-    onStartTask: handleStartTask,
-    isLoading: isLoading
-  })), mode === 'result' && taskResult && /*#__PURE__*/React.createElement("div", {
-    className: "chat-area"
-  }, /*#__PURE__*/React.createElement(TaskResult, {
-    task: taskResult,
-    onClose: () => {
-      setTaskResult(null);
-      setMode('task');
-    }
-  }))));
+  })), mode === 'works' && /*#__PURE__*/React.createElement(Works, null)));
 };
 ReactDOM.render(React.createElement(App), document.getElementById('root'));
 </script>
