@@ -387,6 +387,13 @@ body {
 }
 .work-card:hover .work-card-link { background: var(--accent); color: #fff; }
 
+/* ========== 聊天免责声明 ========== */
+.chat-disclaimer {
+  text-align: center; font-size: 12px; color: var(--text-muted);
+  padding: 9px 20px; background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color); line-height: 1.55;
+}
+
   </style>
 </head>
 <body>
@@ -2306,13 +2313,13 @@ const MessageList = ({
       alt: "BOBO"
     }), /*#__PURE__*/React.createElement("h2", null, "\u4F60\u597D\uFF0C\u6211\u662F BOBO\u804A\u5929\u673A\u5668\u4EBA"), /*#__PURE__*/React.createElement("p", {
       className: "empty-author"
-    }, "\u4F5C\u8005 Ethan X"), /*#__PURE__*/React.createElement("p", null, "\u6211\u53EF\u4EE5\u56DE\u7B54\u95EE\u9898\u3001\u641C\u7D22\u4FE1\u606F\u3001\u6267\u884C\u4EFB\u52A1\u3001\u5206\u6790\u6570\u636E\u3002"), /*#__PURE__*/React.createElement("div", {
+    }, "\u4F5C\u8005 Ethan X"), /*#__PURE__*/React.createElement("p", null, "\u6211\u53EF\u4EE5\u966A\u4F60\u804A\u5929\u3001\u56DE\u7B54\u95EE\u9898\u3001\u641C\u7D22\u4FE1\u606F\u3002"), /*#__PURE__*/React.createElement("div", {
       className: "empty-state-features"
     }, /*#__PURE__*/React.createElement("div", {
       className: "feature-card"
     }, /*#__PURE__*/React.createElement("div", {
       className: "feature-card-icon"
-    }, "\uD83E\uDD16"), /*#__PURE__*/React.createElement("h3", null, "AI Agent"), /*#__PURE__*/React.createElement("p", null, "\u81EA\u4E3B\u89C4\u5212\u3001\u6267\u884C\u3001\u68C0\u67E5\u4EFB\u52A1")), /*#__PURE__*/React.createElement("div", {
+    }, "\uD83D\uDCAC"), /*#__PURE__*/React.createElement("h3", null, "\u804A\u5929\u966A\u4F34"), /*#__PURE__*/React.createElement("p", null, "\u50CF\u670B\u53CB\u4E00\u6837\u966A\u4F60\u804A\u5929\u89E3\u95F7")), /*#__PURE__*/React.createElement("div", {
       className: "feature-card"
     }, /*#__PURE__*/React.createElement("div", {
       className: "feature-card-icon"
@@ -2437,7 +2444,7 @@ const InputBox = ({
   }, "\uD83D\uDCCE"), /*#__PURE__*/React.createElement("textarea", {
     ref: textareaRef,
     className: "input-textarea",
-    placeholder: "\u5411 BOBO\u804A\u5929\u673A\u5668\u4EBA \u63D0\u95EE\uFF0C\u6216\u8F93\u5165 /task \u5F00\u59CB\u4EFB\u52A1...",
+    placeholder: "\u5411 BOBO\u804A\u5929\u673A\u5668\u4EBA \u63D0\u95EE...",
     rows: "1",
     value: text,
     onChange: handleInput,
@@ -2822,7 +2829,9 @@ const App = () => {
     }
   }, "\uD83C\uDF10 ", webSearchOn ? '联网中' : '联网关'))), isSearching && /*#__PURE__*/React.createElement("div", {
     className: "status-bar status-searching"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDD0D \u6B63\u5728\u641C\u7D22...")), /*#__PURE__*/React.createElement(MessageList, {
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDD0D \u6B63\u5728\u641C\u7D22...")), /*#__PURE__*/React.createElement("div", {
+    className: "chat-disclaimer"
+  }, "\u966A\u4F34\u578BAI\uFF0C\u4E3B\u8981\u8D1F\u8D23\u804A\u5929\uFF0C\u4E0D\u4FDD\u8BC1\u80FD\u63D0\u4F9B\u6709\u4EF7\u503C\u4FE1\u606F\uFF0C\u8BF7\u4ED4\u7EC6\u7504\u522B\u3002"), /*#__PURE__*/React.createElement(MessageList, {
     messages: conversation?.messages || [],
     isLoading: isLoading && mode === 'chat',
     isSearching: isSearching,
