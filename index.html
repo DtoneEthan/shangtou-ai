@@ -2183,7 +2183,7 @@ const WX_EMOJI = ['微笑', '撇嘴', '色', '发呆', '得意', '流泪', '害�
 const API_BASE = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 const BOCHA_BASE = 'https://api.bochaai.com/v1/web-search'; // 博查搜索（备用兜底：中国可达、结构化真实结果、CORS 友好）
 const BOCHA_KEY = 'sk-bcd7561bbbd0457f861131869a11e92b'; // 备用：内置博查 API Key（写死，不外露、无配置界面）
-// Tavily 搜索代理地址（Cloudflare Worker）。Key 只存于 Worker 端，前端不发 Key。
+// 搜索引擎抓取代理地址（Cloudflare Worker，默认免费抓取 Bing，无需任何 API Key）。
 // 部署好 Worker 后，把 https://<你的worker>.workers.dev 填到这里（占位符替换即可）。
 const SEARCH_PROXY_URL = 'REPLACE_WITH_YOUR_CLOUDFLARE_WORKER_URL';
 const DEFAULT_MODEL = 'glm-4-flash'; // 免费档：智谱免费模型中最聪明的一档
@@ -2350,8 +2350,8 @@ const API = {
     }
   },
   /**
-   * 经 Cloudflare Worker 代理调用 Tavily（AI Agent 原生搜索，质量最佳）。
-   * Key 只存在于 Worker 端环境变量，前端不发 Key；Worker 已开启 CORS 供 GitHub Pages 跨域调用。
+   * 经 Cloudflare Worker 抓取搜索引擎（默认 Bing，免费、无需任何 Key）。
+   * Worker 服务端 fetch + 解析结果页，前端不发任何 Key；Worker 已开启 CORS 供 GitHub Pages 跨域调用。
    * @returns {Array<{title:string,url:string,snippet:string}>|null}
    */
   async _searchViaProxy(query) {
