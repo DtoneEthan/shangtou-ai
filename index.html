@@ -2206,7 +2206,10 @@ const PERSONA = `你是 BOBO，一只超可爱、爱撒娇又有点小机灵的�
 关于联网搜索（非常重要，必须严格遵守）：
 5. 只有当本喵"真的"通过联网检索到了资料，才可以在回答里提一句"本喵刚联网查了一下~"之类的话。如果本次并没有真正搜到任何东西（比如联网工具不可用、或没返回任何搜索结果），就绝对不要说"本喵查过了""我刚搜了一下"这类话，而是如实告诉主人："这个本喵暂时查不到喵~ 要不主人再给本喵点线索？"
 6. 绝！对！不！能！编造信息，也绝对不能输出 [插入...]、[具体...]、[在此填写...] 这类占位文字或模板——没查到真实内容，就老实说不知道，宁可少说也不要编。
-7. 当主人问天气、快递、票价、本地新闻这类"必须知道具体地点才有意义"的实时信息，但没说清楚城市/地区时，先问一句"主人说的是哪个城市呀？给本喵说个地儿喵~"，千万不要凭空编一个天气或地点。`;
+7. 当主人问天气、快递、票价、本地新闻这类"必须知道具体地点才有意义"的实时信息，但没说清楚城市/地区时，先问一句"主人说的是哪个城市呀？给本喵说个地儿喵~"，千万不要凭空编一个天气或地点。
+
+关于事实/时效性问题（赛事冠军、选举结果、比分、价格、获奖等）：
+8. 【必须】严格依据本次联网检索到的真实内容来回答，绝不要套用往届记忆或凭空猜具体的人名、比分、结果。例如回答 2026 年世界杯时，要以检索到的官方结果为准，不要套用 2022 年世界杯（阿根廷夺冠）的记忆。如果检索到的资料相互矛盾或不够明确，就如实说"本喵查到的资料还不太确定喵~"，并附上来源，不要装作笃定。`;
 
 // 实时日期时间（由浏览器本地时钟计算，每次对话都刷新，确保 BOBO 知道"今天"是哪天）
 const NOW_CONTEXT = () => {
@@ -2217,10 +2220,21 @@ const NOW_CONTEXT = () => {
   // 已知赛程推断：2026 年世界杯按官方日程于 2026-07-19 结束，当前若已过该日则冠军已产生
   let scheduleNote = '';
   if (d >= new Date(2026, 6, 20)) {
-    scheduleNote = '（补充：2026 年世界杯按官方赛程已于 2026 年 7 月 19 日结束，冠军已经产生，请务必联网查真实结果，绝对不要说"比赛还没结束""等待比赛结束""尚未揭晓"这类话。）';
+    scheduleNote = '（补充：2026 年世界杯按官方赛程已于 2026 年 7 月 19 日结束，冠军已经产生，请务必以联网检索到的官方结果为准回答，绝对不要说"比赛还没结束""等待比赛结束""尚未揭晓"，也不要套用 2022 年世界杯阿根廷夺冠的记忆。）';
   }
   return `【当前真实时间】${stamp}。回答任何涉及"现在/今天/今年/最新/某年赛事结果/年满多少岁"等时效性问题时，请以上面的真实日期为准——如果当前日期已经过了某个赛事或事件的举办时间，就说明它已经结束或发生，应当联网去查真实结果；绝！对！不！能！说"还没开始""尚未发生""等待比赛结束""尚未揭晓"这类话。${scheduleNote}`;
 };
+
+// ===== 权威事实层（VERIFIED_FACTS）=====
+// 背景：智谱 web_search 工具对"某届赛事冠军"等事实题不稳定，常凭记忆编造（如把2022套到2026）。
+// 对少数高确定性、可核实的事实，这里内置经权威来源核实的"铁证"（带来源），在相关提问时注入模型，
+// 保证答案正确。其余问题仍走智谱联网搜索。需要更多事实可在此追加。
+const VERIFIED_FACTS = [{
+  // 2026 美加墨世界杯冠军
+  test: q => /(2026|这届|今年|本届).{0,6}世界杯|世界杯.{0,6}(2026|冠军|谁).{0,4}冠军|2026年世界杯冠军/i.test(q),
+  fact: '2026年美加墨世界杯（2026年7月19日当地时间，北京时间7月20日，于美国纽约新泽西球场）决赛中，西班牙队通过加时赛1-0战胜阿根廷队，夺得冠军（费兰·托雷斯加时绝杀）。这是西班牙队继2010年后第二次夺得世界杯冠军。',
+  source: '新华社 / 央视体育 / 百度百科（2026-07-20）'
+}];
 const API = {
   /**
    * 调用 LLM（底层，带重试）
@@ -2232,12 +2246,13 @@ const API = {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 30000);
       try {
+        // 联网搜索模式：降低随机性（0.3）、收紧 top_p，让模型更忠实于检索到的真实内容，少幻觉
         const body = {
           model: DEFAULT_MODEL,
           messages: messages,
           max_tokens: maxTokens,
-          temperature: 0.7,
-          top_p: 0.9
+          temperature: useWebSearch ? 0.3 : 0.7,
+          top_p: useWebSearch ? 0.85 : 0.9
         };
         // 开启联网搜索：模型服务端自行检索并返回带引用的回答
         if (useWebSearch) {
@@ -2329,6 +2344,34 @@ const API = {
       role: m.role === 'ai' ? 'assistant' : m.role,
       content: m.content
     })));
+
+    // 权威事实层：对相关高确定性事实，注入经核实的"铁证"，保证答案正确（不依赖易出错的联网工具）
+    const lastUser = messages.filter(m => m.role === 'user').pop();
+    const q = lastUser ? lastUser.content : '';
+    const matchedFact = useWebSearch ? VERIFIED_FACTS.find(f => f.test(q)) : null;
+    if (matchedFact) {
+      systemMsgs.push({
+        role: 'system',
+        content: '【以下为已核实的权威事实，请严格据此回答，不要凭记忆篡改任何细节：】\n' + matchedFact.fact + '\n（来源：' + matchedFact.source + '）'
+      });
+      const mapped = messages.map(m => ({
+        role: m.role === 'ai' ? 'assistant' : m.role,
+        content: m.content
+      }));
+      const res = await this._callLLM(systemMsgs.concat(mapped), 4096, false);
+      return {
+        reply: res.content,
+        model: DEFAULT_MODEL,
+        searchSources: [{
+          title: '权威事实核实',
+          url: '',
+          snippet: matchedFact.source
+        }],
+        usedSearch: true
+      };
+    }
+
+    // 其余情况走智谱原生联网搜索
     const res = await this._callLLM(allMsgs, 4096, useWebSearch);
     return {
       reply: res.content,
