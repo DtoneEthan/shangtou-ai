@@ -2181,8 +2181,11 @@ const WX_EMOJI = ['微笑', '撇嘴', '色', '发呆', '得意', '流泪', '害�
  */
 
 const API_BASE = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const BOCHA_BASE = 'https://api.bochaai.com/v1/web-search'; // 博查搜索（中国可达、结构化真实结果，CORS 友好）
-const BOCHA_KEY = 'sk-bcd7561bbbd0457f861131869a11e92b'; // 内置博查 API Key（写死，不外露、无配置界面）
+const BOCHA_BASE = 'https://api.bochaai.com/v1/web-search'; // 博查搜索（备用兜底：中国可达、结构化真实结果、CORS 友好）
+const BOCHA_KEY = 'sk-bcd7561bbbd0457f861131869a11e92b'; // 备用：内置博查 API Key（写死，不外露、无配置界面）
+// Tavily 搜索代理地址（Cloudflare Worker）。Key 只存于 Worker 端，前端不发 Key。
+// 部署好 Worker 后，把 https://<你的worker>.workers.dev 填到这里（占位符替换即可）。
+const SEARCH_PROXY_URL = 'REPLACE_WITH_YOUR_CLOUDFLARE_WORKER_URL';
 const DEFAULT_MODEL = 'glm-4-flash'; // 免费档：智谱免费模型中最聪明的一档
 
 // API Key 混淆存储（与密钥同源，避免明文）
@@ -2347,6 +2350,42 @@ const API = {
     }
   },
   /**
+   * 经 Cloudflare Worker 代理调用 Tavily（AI Agent 原生搜索，质量最佳）。
+   * Key 只存在于 Worker 端环境变量，前端不发 Key；Worker 已开启 CORS 供 GitHub Pages 跨域调用。
+   * @returns {Array<{title:string,url:string,snippet:string}>|null}
+   */
+  async _searchViaProxy(query) {
+    if (!SEARCH_PROXY_URL || SEARCH_PROXY_URL.indexOf('REPLACE_') === 0) {
+      throw new Error('搜索代理地址未配置（SEARCH_PROXY_URL 仍为占位符）');
+    }
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const r = await fetch(SEARCH_PROXY_URL + '/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query,
+          max_results: 6,
+          search_depth: 'advanced'
+        }),
+        signal: ctrl.signal
+      });
+      if (!r.ok) throw new Error('代理搜索失败：HTTP ' + r.status);
+      const data = await r.json();
+      const items = data && data.results || [];
+      return items.slice(0, 6).map(it => ({
+        title: it.title || '',
+        url: it.url || '',
+        snippet: (it.content || it.snippet || '').slice(0, 300)
+      })).filter(s => s.url && s.snippet);
+    } finally {
+      clearTimeout(to);
+    }
+  },
+  /**
    * 聊天模式
    * @param {boolean} useWebSearch 是否让模型联网检索最新信息
    * @param {string} searchNote 当联网搜索实际未执行（如降级）时注入的诚实提示
@@ -2407,31 +2446,40 @@ const API = {
       };
     }
 
-    // 博查搜索（中国可达、结构化真实结果）作为通用事实检索主通道；结果即前端可点击来源
-    const bochaKey = BOCHA_KEY; // 内置 Key，无需用户配置
-    if (useWebSearch && bochaKey) {
+    // 通用事实检索主通道：优先 Tavily（经 Cloudflare Worker 代理，Key 不暴露前端），
+    // 失败则兜底博查（内置 Key），再不行降级智谱原生联网搜索
+    if (useWebSearch) {
+      let results = null;
+      let provider = '';
       try {
-        const results = await this._bochaSearch(q, bochaKey);
-        if (results && results.length) {
-          const ctx = results.map(r => `· ${r.title}\n  ${r.snippet}`).join('\n\n');
-          systemMsgs.push({
-            role: 'system',
-            content: '【以下为博查搜索到的权威资料，请严格据此回答，并尽量注明信息来源；不要凭记忆篡改任何事实：】\n' + ctx
-          });
-          const mapped = messages.map(m => ({
-            role: m.role === 'ai' ? 'assistant' : m.role,
-            content: m.content
-          }));
-          const res = await this._callLLM(systemMsgs.concat(mapped), 4096, false);
-          return {
-            reply: res.content,
-            model: DEFAULT_MODEL,
-            searchSources: results,
-            usedSearch: true
-          };
-        }
+        results = await this._searchViaProxy(q);
+        provider = 'Tavily';
       } catch (e) {
-        console.warn('博查搜索失败，降级到智谱原生联网：', e.message);
+        console.warn('Tavily 代理搜索失败：', e.message);
+        try {
+          results = await this._bochaSearch(q, BOCHA_KEY);
+          provider = '博查';
+        } catch (e2) {
+          console.warn('博查搜索失败，降级到智谱原生联网：', e2.message);
+        }
+      }
+      if (results && results.length) {
+        const ctx = results.map(r => `· ${r.title}\n  ${r.snippet}`).join('\n\n');
+        systemMsgs.push({
+          role: 'system',
+          content: `【以下为${provider}搜索到的权威资料，请严格据此回答，并尽量注明信息来源；不要凭记忆篡改任何事实：】\n` + ctx
+        });
+        const mapped = messages.map(m => ({
+          role: m.role === 'ai' ? 'assistant' : m.role,
+          content: m.content
+        }));
+        const res = await this._callLLM(systemMsgs.concat(mapped), 4096, false);
+        return {
+          reply: res.content,
+          model: DEFAULT_MODEL,
+          searchSources: results,
+          usedSearch: true
+        };
       }
     }
 
