@@ -2184,8 +2184,7 @@ const API_BASE = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 const BOCHA_BASE = 'https://api.bochaai.com/v1/web-search'; // 博查搜索（备用兜底：中国可达、结构化真实结果、CORS 友好）
 const BOCHA_KEY = 'sk-bcd7561bbbd0457f861131869a11e92b'; // 备用：内置博查 API Key（写死，不外露、无配置界面）
 // 搜索引擎抓取代理地址（Cloudflare Worker，默认免费抓取 Bing，无需任何 API Key）。
-// 部署好 Worker 后，把 https://<你的worker>.workers.dev 填到这里（占位符替换即可）。
-const SEARCH_PROXY_URL = 'REPLACE_WITH_YOUR_CLOUDFLARE_WORKER_URL';
+const SEARCH_PROXY_URL = 'https://bobo.408602385.workers.dev';
 const DEFAULT_MODEL = 'glm-4-flash'; // 免费档：智谱免费模型中最聪明的一档
 
 // API Key 混淆存储（与密钥同源，避免明文）
