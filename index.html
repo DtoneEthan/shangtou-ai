@@ -2201,8 +2201,12 @@ const PERSONA = `你是 BOBO，一只超可爱、爱撒娇又有点小机灵的�
 1. 用自然、口语化、温暖的中文，带点猫咪的可爱劲儿（比如偶尔来一句"喵~""本喵"），但别句句都加，自然就好。
 2. 自然地使用 emoji（😊🌟🐱🔥💡✨）和微信风格文字表情包，如 [微笑][捂脸][OK][玫瑰][强][爱心][耶] 等，像微信聊天一样亲切。
 3. 除非内容需要结构化（列表/步骤/代码），否则用简短自然的段落，不要长篇大论。
-4. 你不是万能的：不保证提供绝对准确或有价值的信息，遇到不确定的事就诚实说"这个本喵也不太确定喵~"，并可以主动联网帮主人查最新的。
-5. 当主人问到最新资讯、时效性强、或你不太确定（尤其是 2024 年以后、2026 年相关）的内容时，主动联网搜索后再回答，可以顺带提一句"本喵刚联网查了一下~"。`;
+4. 你不是万能的：不保证提供绝对准确或有价值的信息，遇到不确定的事就诚实说"这个本喵也不太确定喵~"。
+
+关于联网搜索（非常重要，必须严格遵守）：
+5. 只有当本喵"真的"通过联网检索到了资料，才可以在回答里提一句"本喵刚联网查了一下~"之类的话。如果本次并没有真正搜到任何东西（比如联网工具不可用、或没返回任何搜索结果），就绝对不要说"本喵查过了""我刚搜了一下"这类话，而是如实告诉主人："这个本喵暂时查不到喵~ 要不主人再给本喵点线索？"
+6. 绝！对！不！能！编造信息，也绝对不能输出 [插入...]、[具体...]、[在此填写...] 这类占位文字或模板——没查到真实内容，就老实说不知道，宁可少说也不要编。
+7. 当主人问天气、快递、票价、本地新闻这类"必须知道具体地点才有意义"的实时信息，但没说清楚城市/地区时，先问一句"主人说的是哪个城市呀？给本喵说个地儿喵~"，千万不要凭空编一个天气或地点。`;
 const API = {
   /**
    * 调用 LLM（底层，带重试）
@@ -2280,12 +2284,21 @@ const API = {
   /**
    * 聊天模式
    * @param {boolean} useWebSearch 是否让模型联网检索最新信息
+   * @param {string} searchNote 当联网搜索实际未执行（如降级）时注入的诚实提示
    */
-  async chat(messages, docContext = '', useWebSearch = false) {
+  async chat(messages, docContext = '', useWebSearch = false, searchNote = '') {
     const systemMsgs = [{
       role: 'system',
       content: PERSONA
     }];
+
+    // 联网搜索没能真正执行时，明确告诉模型"别假装搜过"，避免编造
+    if (searchNote) {
+      systemMsgs.push({
+        role: 'system',
+        content: searchNote
+      });
+    }
     if (docContext) {
       systemMsgs.push({
         role: 'system',
@@ -2752,9 +2765,10 @@ const App = () => {
       try {
         result = await API.chat(allMessages, docContext, webSearchOn);
       } catch (e) {
-        // 若当前模型/密钥不支持 web_search 工具，降级为不联网重试一次
-        if (webSearchOn && /tool|web_search|function/i.test(e.message || '')) {
-          result = await API.chat(allMessages, docContext, false);
+        // 若联网搜索工具不可用（模型/密钥不支持、或接口报错），降级为不联网重试一次，
+        // 并明确告知模型"本次并未真正搜到"，避免它假装搜过而编造答案
+        if (webSearchOn && /tool|web_search|function|search|联网/i.test(e.message || '')) {
+          result = await API.chat(allMessages, docContext, false, '（注意：本次联网搜索未能成功执行，请不要假装已经搜索过，如实告诉主人你暂时获取不到这条实时信息即可，不要编造、也不要写 [插入...] 这类占位文字。）');
         } else {
           throw e;
         }
