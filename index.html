@@ -2177,13 +2177,13 @@ const WX_EMOJI = ['微笑', '撇嘴', '色', '发呆', '得意', '流泪', '害�
 
 /**
  * BOBO聊天机器人 — API 层
- * 国内大模型免费 API 调用 + 前端搜索聚合
+ * 国内大模型免费 API 调用 + 智谱原生联网搜索（实时资讯 / 2026 知识）
  */
 
 const API_BASE = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const DEFAULT_MODEL = 'glm-4-flash';
+const DEFAULT_MODEL = 'glm-4-flash'; // 免费档：智谱免费模型中最聪明的一档
 
-// API Key 混淆存储
+// API Key 混淆存储（与密钥同源，避免明文）
 const _EK = 'cURbVQ8neFEEBwdyQF9VWiMrBFUBV3xEXANeJy9QAQcbLBEDURgwO2RcXXdxFT0lAw==';
 const _XK = 'EthanAI2025';
 const _DK = () => {
@@ -2193,29 +2193,50 @@ const _DK = () => {
     return '';
   }
 };
+
+// BOBO 萌猫人设（陪伴型 AI，由 Ethan X 打造）
+const PERSONA = `你是 BOBO，一只超可爱、爱撒娇又有点小机灵的萌猫 AI，由 Ethan X 打造。你主要负责陪伴聊天，像朋友（也像一只猫）一样和主人轻松自然地交流。
+
+聊天风格：
+1. 用自然、口语化、温暖的中文，带点猫咪的可爱劲儿（比如偶尔来一句"喵~""本喵"），但别句句都加，自然就好。
+2. 自然地使用 emoji（😊🌟🐱🔥💡✨）和微信风格文字表情包，如 [微笑][捂脸][OK][玫瑰][强][爱心][耶] 等，像微信聊天一样亲切。
+3. 除非内容需要结构化（列表/步骤/代码），否则用简短自然的段落，不要长篇大论。
+4. 你不是万能的：不保证提供绝对准确或有价值的信息，遇到不确定的事就诚实说"这个本喵也不太确定喵~"，并可以主动联网帮主人查最新的。
+5. 当主人问到最新资讯、时效性强、或你不太确定（尤其是 2024 年以后、2026 年相关）的内容时，主动联网搜索后再回答，可以顺带提一句"本喵刚联网查了一下~"。`;
 const API = {
   /**
    * 调用 LLM（底层，带重试）
+   * @param {boolean} useWebSearch 是否开启智谱原生联网搜索
    */
-  async _callLLM(messages, maxTokens = 4096, retries = 3) {
+  async _callLLM(messages, maxTokens = 4096, useWebSearch = false, retries = 3) {
     let lastError;
     for (let attempt = 0; attempt <= retries; attempt++) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 30000);
       try {
+        const body = {
+          model: DEFAULT_MODEL,
+          messages: messages,
+          max_tokens: maxTokens,
+          temperature: 0.7,
+          top_p: 0.9
+        };
+        // 开启联网搜索：模型服务端自行检索并返回带引用的回答
+        if (useWebSearch) {
+          body.tools = [{
+            type: 'web_search',
+            web_search: {
+              enable: true
+            }
+          }];
+        }
         const response = await fetch(API_BASE, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + _DK()
           },
-          body: JSON.stringify({
-            model: DEFAULT_MODEL,
-            messages: messages,
-            max_tokens: maxTokens,
-            temperature: 0.7,
-            top_p: 0.9
-          }),
+          body: JSON.stringify(body),
           signal: controller.signal
         });
         const data = await response.json();
@@ -2223,11 +2244,10 @@ const API = {
           let errMsg = data.error?.message || data.message || JSON.stringify(data);
           if (typeof errMsg === 'object') errMsg = JSON.stringify(errMsg);
           lastError = new Error('AI API 错误：' + errMsg);
-
-          // 网络错误或 5xx，重试
-          if (response.status >= 500 || data.error?.code && data.error.code === '1234') {
+          // 5xx 或网络错误，退避重试
+          if (response.status >= 500) {
             if (attempt < retries) {
-              const delay = (attempt + 1) * 3000; // 3s, 6s, 9s
+              const delay = (attempt + 1) * 3000;
               console.warn('API 临时故障，' + delay / 1000 + '秒后重试... (' + (attempt + 1) + '/' + retries + ')');
               await new Promise(r => setTimeout(r, delay));
               continue;
@@ -2235,7 +2255,22 @@ const API = {
           }
           throw lastError;
         }
-        return data.choices[0].message.content;
+        const msg = data.choices?.[0]?.message || {};
+        const content = msg.content || '';
+        // 尝试提取联网搜索来源用于前端展示（不同版本字段名可能不同）
+        let sources = null;
+        const sr = msg.search_results || msg.searchResults || msg.tool_calls && null;
+        if (Array.isArray(sr) && sr.length) {
+          sources = sr.slice(0, 6).map(s => ({
+            title: s.title || s.name || '',
+            url: s.url || s.link || '',
+            snippet: (s.content || s.snippet || '').slice(0, 160)
+          })).filter(s => s.url);
+        }
+        return {
+          content,
+          sources
+        };
       } finally {
         clearTimeout(timer);
       }
@@ -2244,11 +2279,12 @@ const API = {
   },
   /**
    * 聊天模式
+   * @param {boolean} useWebSearch 是否让模型联网检索最新信息
    */
-  async chat(messages, docContext = '', searchContext = '') {
+  async chat(messages, docContext = '', useWebSearch = false) {
     const systemMsgs = [{
       role: 'system',
-      content: '你是 BOBO聊天机器人，一个强大又亲切的 AI Agent，由 Ethan X 打造。你可以回答问题、搜索信息、执行任务、分析数据。\n\n聊天风格要求：\n1. 用自然、口语化、像朋友一样的中文回复，语气轻松温暖，不要像机器说明书。\n2. 自然地使用 emoji 表情（如 😊🌟👍🔥💡✨），让对话生动，但每句 1-2 个即可，不要堆砌。\n3. 适当使用微信风格的文字表情包，如 [微笑] [捂脸] [OK] [玫瑰] [强] [呲牙] [机智] [耶] [爱心] [庆祝] 等，像平时在微信上聊天那样，会显得更亲切。\n4. 除非内容需要结构化（如列表、步骤、代码），否则用简短自然的段落，不要长篇大论。'
+      content: PERSONA
     }];
     if (docContext) {
       systemMsgs.push({
@@ -2256,79 +2292,24 @@ const API = {
         content: '文档内容：\n' + docContext.slice(0, 10000)
       });
     }
-    if (searchContext) {
-      systemMsgs.push({
-        role: 'system',
-        content: '搜索结果：\n' + searchContext.slice(0, 8000)
-      });
-    }
     const allMsgs = systemMsgs.concat(messages.map(m => ({
       role: m.role === 'ai' ? 'assistant' : m.role,
       content: m.content
     })));
-    const reply = await this._callLLM(allMsgs, 4096);
+    const res = await this._callLLM(allMsgs, 4096, useWebSearch);
     return {
-      reply,
-      model: DEFAULT_MODEL
+      reply: res.content,
+      model: DEFAULT_MODEL,
+      searchSources: res.sources || null,
+      usedSearch: !!useWebSearch
     };
   },
   /**
-   * 搜索网络
-   */
-  async searchWeb(query) {
-    const results = [];
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-
-    // Wikipedia
-    try {
-      const wikiResp = await fetch('https://zh.wikipedia.org/w/api.php?action=query&format=json&list=search&srsearch=' + encodeURIComponent(query) + '&srlimit=5&origin=*', {
-        signal: controller.signal
-      });
-      const wikiData = await wikiResp.json();
-      for (const item of wikiData.query?.search || []) {
-        results.push({
-          title: item.title,
-          url: 'https://zh.wikipedia.org/wiki/' + encodeURIComponent(item.title.replace(/ /g, '_')),
-          snippet: item.snippet.replace(/<[^>]+>/g, '').slice(0, 200),
-          source: 'Wikipedia'
-        });
-      }
-    } catch (e) {/* ignore */}
-
-    // DuckDuckGo
-    try {
-      const ddgResp = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json&no_html=1', {
-        signal: controller.signal
-      });
-      const ddgData = await ddgResp.json();
-      if (ddgData.Abstract) {
-        results.push({
-          title: ddgData.Heading || query,
-          url: ddgData.AbstractURL || '',
-          snippet: ddgData.Abstract.slice(0, 300),
-          source: 'DuckDuckGo'
-        });
-      }
-      for (const topic of (ddgData.RelatedTopics || []).slice(0, 4)) {
-        if (topic.Text) {
-          results.push({
-            title: (topic.FirstURL || '').split('/').pop().replace(/_/g, ' '),
-            url: topic.FirstURL || '',
-            snippet: topic.Text.replace(/<[^>]+>/g, '').slice(0, 200),
-            source: 'DuckDuckGo'
-          });
-        }
-      }
-    } catch (e) {/* ignore */}
-    clearTimeout(timer);
-    return results;
-  },
-  /**
-   * 判断是否需要搜索
+   * 判断是否"可能需要搜索"（旧接口，保留兼容；
+   * 现主路径改为：联网开关打开即由智谱原生搜索决定何时检索）
    */
   shouldSearch(text) {
-    const triggers = ['搜索', '查找', '最新', '今天', '现在', '天气', '股价', '新闻', 'search', 'latest', 'today', 'now', 'weather', 'news', 'price'];
+    const triggers = ['搜索', '查找', '最新', '今天', '现在', '天气', '股价', '新闻', '2024', '2025', '2026', 'search', 'latest', 'today', 'now', 'weather', 'news', 'price'];
     const lower = text.toLowerCase();
     return triggers.some(t => lower.includes(t));
   }
@@ -2765,24 +2746,25 @@ const App = () => {
       const allMessages = updatedConv.messages;
       const docContext = updatedConv.documentContext || '';
       const userText = userMessage.content;
-      let searchContext = '';
-      let searchSources = [];
-      if (webSearchOn && API.shouldSearch(userText)) {
-        setIsSearching(true);
-        try {
-          const results = await API.searchWeb(userText);
-          searchSources = results;
-          searchContext = results.map(r => '- ' + r.title + ': ' + r.snippet).join('\n');
-        } catch (e) {/* ignore */}
-        setIsSearching(false);
+
+      // 联网搜索改由智谱原生完成：联网开关打开即让模型自行决定何时检索 2026 等实时资讯
+      let result;
+      try {
+        result = await API.chat(allMessages, docContext, webSearchOn);
+      } catch (e) {
+        // 若当前模型/密钥不支持 web_search 工具，降级为不联网重试一次
+        if (webSearchOn && /tool|web_search|function/i.test(e.message || '')) {
+          result = await API.chat(allMessages, docContext, false);
+        } else {
+          throw e;
+        }
       }
-      const result = await API.chat(allMessages, docContext, searchContext);
       const aiMessage = {
         role: 'assistant',
         content: result.reply,
         timestamp: new Date().toISOString(),
-        searchSources: searchSources.length > 0 ? searchSources : null,
-        usedSearch: searchContext.length > 0
+        searchSources: result.searchSources || null,
+        usedSearch: !!result.usedSearch
       };
       Storage.addMessage(conversation.id, aiMessage);
       setConversation(Storage.getConversation(conversation.id));
