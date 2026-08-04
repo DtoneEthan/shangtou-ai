@@ -2214,7 +2214,12 @@ const NOW_CONTEXT = () => {
   const wd = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
   const pad = n => String(n).padStart(2, '0');
   const stamp = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 星期${wd}，当前时间约 ${pad(d.getHours())}:${pad(d.getMinutes())}（浏览器本地时间）`;
-  return `【当前真实时间】${stamp}。回答任何涉及"现在/今天/今年/最新/某年赛事结果/年满多少岁"等时效性问题时，请以上面的真实日期为准——如果当前日期已经过了某个赛事或事件的举办时间，就说明它已经结束或发生，应当联网去查真实结果，而不要想当然地说"还没开始""尚未发生"。`;
+  // 已知赛程推断：2026 年世界杯按官方日程于 2026-07-19 结束，当前若已过该日则冠军已产生
+  let scheduleNote = '';
+  if (d >= new Date(2026, 6, 20)) {
+    scheduleNote = '（补充：2026 年世界杯按官方赛程已于 2026 年 7 月 19 日结束，冠军已经产生，请务必联网查真实结果，绝对不要说"比赛还没结束""等待比赛结束""尚未揭晓"这类话。）';
+  }
+  return `【当前真实时间】${stamp}。回答任何涉及"现在/今天/今年/最新/某年赛事结果/年满多少岁"等时效性问题时，请以上面的真实日期为准——如果当前日期已经过了某个赛事或事件的举办时间，就说明它已经结束或发生，应当联网去查真实结果；绝！对！不！能！说"还没开始""尚未发生""等待比赛结束""尚未揭晓"这类话。${scheduleNote}`;
 };
 const API = {
   /**
@@ -2770,6 +2775,7 @@ const App = () => {
     const updatedConv = Storage.getConversation(conversation.id);
     setConversation(updatedConv);
     setIsLoading(true);
+    setIsSearching(webSearchOn); // 给出"正在联网搜索"的可见反馈
     try {
       const allMessages = updatedConv.messages;
       const docContext = updatedConv.documentContext || '';
